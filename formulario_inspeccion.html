@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspección de Centros</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map { height: 400px; }
+        #formulario { display: none; margin-top: 20px; }
+        .info-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+        .info-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-weight: bold;
+        }
+        .info-box input {
+            text-align: center;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+    <h2>Inspección de Centros</h2>
+    <div id="map"></div>
+    <form id="formulario">
+        <h3>Formulario de Inspección</h3>
+        <div class="info-container">
+            <div class="info-box">
+                <label>Nombre del Centro</label>
+                <input type="text" id="nombre_centro" readonly>
+            </div>
+            <div class="info-box">
+                <label>CV</label>
+                <input type="text" id="cv" readonly>
+            </div>
+            <div class="info-box">
+                <label>Circuito</label>
+                <input type="text" id="circuito" readonly>
+            </div>
+            <div class="info-box">
+                <label>Municipio</label>
+                <input type="text" id="municipio" readonly>
+            </div>
+            <div class="info-box">
+                <label>Sector Electoral</label>
+                <input type="text" id="sector_electoral" readonly>
+            </div>
+        </div>
+        <br>
+        <label>Latitud Original:</label>
+        <input type="text" id="latitud_original" readonly>
+        <br><br>
+        <label>Longitud Original:</label>
+        <input type="text" id="longitud_original" readonly>
+        <br><br>
+        <label>Latitud Nueva:</label>
+        <input type="text" id="latitud_nueva" readonly>
+        <br><br>
+        <label>Longitud Nueva:</label>
+        <input type="text" id="longitud_nueva" readonly>
+        <br><br>
+        <button type="button" onclick="captarCoordenadas()">Captar coordenadas reales</button>
+        <br><br>
+        <label>Estado del Suministro:</label>
+        <select id="estado_suministro">
+            <option value="sin_conexion">Sin Conexión</option>
+            <option value="ilegal">Ilegal (Conexión directa Ilegal)</option>
+            <option value="legal">Conexión Legal</option>
+            <option value="legal_servicio_directo">Conexión Legal (Servicio directo)</option>
+        </select>
+        <br><br>
+        <label>Distancia real del apoyo al punto de medida en metros:</label>
+        <input type="number" id="distancia" min="0" step="0.01">
+        <br><br>
+        <label>Cliente dispone de base:</label>
+        <select id="base">
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+        </select>
+        <br><br>
+        <label>Cliente dispone de acometida:</label>
+        <select id="acometida">
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+        </select>
+        <br><br>
+        <label>Instalación Interna Lista:</label>
+        <select id="instalacion">
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+        </select>
+        <br><br>
+        <label>Observaciones Relevantes:</label>
+        <textarea id="observaciones"></textarea>
+        <br><br>
+        <button type="button" onclick="guardarInspeccion()">Guardar Inspección</button>
+    </form>
+
+    <script>
+        var map = L.map('map').setView([15.5, -87.5], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var puntos = [
+            { id: 1, nombre: "CEB NUESTRA SRA DE LA MERCED", cv: "5061026", circuito: "RNA385", municipio: "PUERTO CORTES", sector_electoral: "NUEVOS HORIZONTES", lat: 15.838818, lon: -87.89909 },
+            { id: 2, nombre: "ESC. 4 DE JULIO", cv: "5062005", circuito: "RNA385", municipio: "PUERTO CORTES", sector_electoral: "CALAN", lat: 15.736592, lon: -87.83063 },
+            { id: 3, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "16182007", circuito: "NCO364", municipio: "QUIMISTAN", sector_electoral: "LA CEIBITA", lat: 15.307345, lon: -88.252519 },
+            { id: 4, nombre: "CEB MARIO MELGAR", cv: "5062010", circuito: "RNA385", municipio: "PUERTO CORTES", sector_electoral: "EL MANGO", lat: 15.758769, lon: -87.83701 },
+            { id: 5, nombre: "ESC. MARIO ENRIQUE PRIETO", cv: "5062004", circuito: "TSZ224", municipio: "PUERTO CORTES", sector_electoral: "BARRA DE CHAMELECON", lat: 15.894069, lon: -87.786248 },
+            { id: 6, nombre: "ESC. MIGUEL PAZ BARAHONA", cv: "16162002", circuito: "NCO364", municipio: "PETOA", sector_electoral: "EL PARAISO", lat: 15.229299, lon: -88.30049 },
+            { id: 7, nombre: "ESC. MINERVA", cv: "4112008", circuito: "LEC362", municipio: "LA JIGUA", sector_electoral: "EL CAMPANARIO", lat: 15.14550785, lon: -88.72494673 },
+            { id: 8, nombre: "ESC. ALONSO ALTAMIRANO", cv: "16182033", circuito: "NCO364", municipio: "QUIMISTAN", sector_electoral: "BUENA VISTA MOTAGUILLA", lat: 15.456297, lon: -88.347123 },
+            { id: 9, nombre: "ESC. PATRIA", cv: "16042016", circuito: "LEC362", municipio: "AZACUALPA", sector_electoral: "CERRO GRANDE", lat: 15.39196, lon: -88.587657 },
+            { id: 10, nombre: "ESC. SOTERO BARAHONA", cv: "5032023", circuito: "MAS352", municipio: "OMOA", sector_electoral: "BARRA DEL MOTAGUA", lat: 15.70943, lon: -88.206183 },
+            { id: 11, nombre: "ESC. PATRIA", cv: "5032024", circuito: "MAS352", municipio: "OMOA", sector_electoral: "SAN ISIDRO", lat: 15.62169607, lon: -88.14757232 },
+            { id: 12, nombre: "ESC. DIONISIO DE HERRERA", cv: "16042013", circuito: "LEC362", municipio: "AZACUALPA", sector_electoral: "EL AGUACATE", lat: 15.344155, lon: -88.672831 }
+        ];
+
+        puntos.forEach(punto => {
+            L.marker([punto.lat, punto.lon]).addTo(map)
+                .bindPopup(`<b>${punto.nombre}</b><br><button onclick="seleccionarPunto(${punto.id})">Inspeccionar</button>`);
+        });
+
+        function seleccionarPunto(id) {
+            var punto = puntos.find(p => p.id === id);
+            if (punto) {
+                document.getElementById("nombre_centro").value = punto.nombre;
+                document.getElementById("cv").value = punto.cv;
+                document.getElementById("circuito").value = punto.circuito;
+                document.getElementById("municipio").value = punto.municipio;
+                document.getElementById("sector_electoral").value = punto.sector_electoral;
+                document.getElementById("latitud_original").value = punto.lat;
+                document.getElementById("longitud_original").value = punto.lon;
+                document.getElementById("formulario").style.display = "block";
+            }
+        }
+
+        function captarCoordenadas() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    document.getElementById("latitud_nueva").value = position.coords.latitude;
+                    document.getElementById("longitud_nueva").value = position.coords.longitude;
+                }, error => {
+                    alert("No se pudo obtener la ubicación: " + error.message);
+                });
+            } else {
+                alert("Geolocalización no soportada en este navegador.");
+            }
+        }
+
+        var apiURL = "https://script.google.com/macros/s/AKfycbxL-D8hl3RQQukcPw6m_x1X2r35UOuEG0p7co-iaPw8lRC33CjUOmJny5VULX3q64BHPA/exec";
+
+        function guardarInspeccion() {
+            var datos = {
+                id: 1, // Usa el ID correcto del punto seleccionado
+                nombre_centro: document.getElementById("nombre_centro").value,
+                cv: document.getElementById("cv").value,
+                circuito: document.getElementById("circuito").value,
+                municipio: document.getElementById("municipio").value,
+                sector_electoral: document.getElementById("sector_electoral").value,
+                latitud_original: document.getElementById("latitud_original").value,
+                longitud_original: document.getElementById("longitud_original").value,
+                latitud_nueva: document.getElementById("latitud_nueva").value,
+                longitud_nueva: document.getElementById("longitud_nueva").value,
+                estado_suministro: document.getElementById("estado_suministro").value,
+                distancia: document.getElementById("distancia").value,
+                base: document.getElementById("base").value,
+                acometida: document.getElementById("acometida").value,
+                instalacion: document.getElementById("instalacion").value,
+                observaciones: document.getElementById("observaciones").value
+            };
+
+            fetch(apiURL, {
+                method: 'POST',
+                body: JSON.stringify(datos),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).then(response => {
+                console.log(response);
+                if (response.ok) {
+                    alert("Guardado con éxito");
+                } else {
+                    alert("Hubo un problema al guardar los datos");
+                }
+            }).catch(error => {
+                console.error("Error al guardar los datos:", error);
+                alert("Error al guardar los datos. Por favor, intenta de nuevo.");
+            });
+        }
+    </script>
+</body>
+</html>
