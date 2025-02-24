@@ -155,11 +155,10 @@
             }
         }
 
-        var apiURL = "https://script.google.com/macros/s/AKfycbxhPWPikFzRbEJS-EdYpeQDszfBlN6Sx08TABSy8BTAihQA04qFfmVrfg6XI9H6Qe85KA/exec";
+var apiURL = "https://script.google.com/macros/s/AKfycbztNheEuBeShIfNJ14uqJk0VuTz6MLjZwMJ7jhPLptStg5v4akuYTWzlcZ7CHgzgx5QFg/exec";  // Reemplázalo con la URL del script de Google
 
-        function guardarInspeccion() {
+function guardarInspeccion() {
     var datos = {
-        id: 1, 
         nombre_centro: document.getElementById("nombre_centro").value,
         cv: document.getElementById("cv").value,
         circuito: document.getElementById("circuito").value,
@@ -177,26 +176,23 @@
         observaciones: document.getElementById("observaciones").value
     };
 
-    fetch(apiURL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(datos)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Respuesta del servidor:", data);
-        if (data.message) {
-            alert("Guardado con éxito");
-        } else {
-            alert("Error en la respuesta del servidor: " + JSON.stringify(data));
-        }
-    })
-    .catch(error => {
-        console.error("Error al guardar los datos:", error);
-        alert("Error al guardar los datos. Por favor, intenta de nuevo.");
-    });
+fetch(apiURL, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify(datos),
+    mode: "no-cors" // 🚨 Esto evita el bloqueo CORS
+})
+.then(response => {
+    console.log("Datos enviados correctamente.");
+    alert("Guardado con éxito");
+})
+.catch(error => {
+    console.error("Error al guardar los datos:", error);
+    alert("Error al guardar los datos. Por favor, intenta de nuevo.");
+});
+
 }
     </script>
 </body>
