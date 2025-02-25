@@ -146,6 +146,7 @@ button {
     <option value="si">Sí</option>
     <option value="no">No</option>
 </select>
+<br><br>
         <label>Observaciones Relevantes:</label>
         <textarea id="observaciones"></textarea>
         <br><br>
@@ -155,6 +156,20 @@ button {
     <script>
         var map = L.map('map').setView([15.5, -87.5], 7);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    var iconoNormal = L.icon({
+        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png', // Icono azul (punto no inspeccionado)
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
+    });
+
+    var iconoInspeccionado = L.icon({
+        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png', // Icono verde (punto inspeccionado)
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
+    });
+
+    var marcadores = {};
 
         var puntos = [
             { id: 1, nombre: "CEB NUESTRA SRA DE LA MERCED", cv: "5061026", circuito: "RNA385", municipio: "PUERTO CORTES", sector_electoral: "NUEVOS HORIZONTES", lat: 15.838818, lon: -87.89909 },
@@ -171,10 +186,13 @@ button {
             { id: 12, nombre: "ESC. DIONISIO DE HERRERA", cv: "16042013", circuito: "LEC362", municipio: "AZACUALPA", sector_electoral: "EL AGUACATE", lat: 15.344155, lon: -88.672831 }
         ];
 
-        puntos.forEach(punto => {
-            L.marker([punto.lat, punto.lon]).addTo(map)
-                .bindPopup(`<b>${punto.nombre}</b><br><button onclick="seleccionarPunto(${punto.id})">Inspeccionar</button>`);
-        });
+puntos.forEach(punto => {
+    var marcador = L.marker([punto.lat, punto.lon], { icon: iconoNormal }) // Asegurar que se asigna un icono al inicio
+        .addTo(map)
+        .bindPopup(`<b>${punto.nombre}</b><br><button onclick="seleccionarPunto(${punto.id})">Inspeccionar</button>`);
+
+    marcadores[punto.cv] = marcador; // Guardar el marcador en el objeto para modificarlo después
+});
 
 function seleccionarPunto(id) {
     var punto = puntos.find(p => p.id === id);
@@ -238,24 +256,29 @@ function guardarInspeccion() {
         observaciones: document.getElementById("observaciones").value
     };
 
-fetch(apiURL, {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify(datos),
-    mode: "no-cors" // 🚨 Esto evita el bloqueo CORS
-})
-.then(response => {
-    console.log("Datos enviados correctamente.");
-    alert("Guardado con éxito");
-})
-.catch(error => {
-    console.error("Error al guardar los datos:", error);
-    alert("Error al guardar los datos. Por favor, intenta de nuevo.");
-});
+    fetch(apiURL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(datos),
+        mode: "no-cors"
+    })
+    .then(response => {
+        console.log("Datos enviados correctamente.");
+        alert("Guardado con éxito");
 
+        // Cambiar icono del marcador a verde después de guardar
+        if (marcadores[datos.cv]) {
+            marcadores[datos.cv].setIcon(iconoInspeccionado);
+        }
+    })
+    .catch(error => {
+        console.error("Error al guardar los datos:", error);
+        alert("Error al guardar los datos. Por favor, intenta de nuevo.");
+    });
 }
+
     </script>
 </body>
 </html>
