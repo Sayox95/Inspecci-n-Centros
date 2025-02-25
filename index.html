@@ -196,12 +196,16 @@ button {
             { id: 12, nombre: "ESC. DIONISIO DE HERRERA", cv: "16042013", circuito: "LEC362", municipio: "AZACUALPA", sector_electoral: "EL AGUACATE", lat: 15.344155, lon: -88.672831 }
         ];
 
+let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
+
 puntos.forEach(punto => {
-    var marcador = L.marker([punto.lat, punto.lon], { icon: iconoNormal }) // Asegurar que se asigna un icono al inicio
+    var icono = inspeccionados.includes(punto.cv) ? iconoInspeccionado : iconoNormal; // Si está en inspeccionados, usa el verde
+
+    var marcador = L.marker([punto.lat, punto.lon], { icon: icono })
         .addTo(map)
         .bindPopup(`<b>${punto.nombre}</b><br><button onclick="seleccionarPunto(${punto.id})">Inspeccionar</button>`);
 
-    marcadores[punto.cv] = marcador; // Guardar el marcador en el objeto para modificarlo después
+    marcadores[punto.cv] = marcador;
 });
 
 function seleccionarPunto(id) {
@@ -278,9 +282,16 @@ function guardarInspeccion() {
         console.log("Datos enviados correctamente.");
         alert("Guardado con éxito");
 
-        // Cambiar icono del marcador a verde después de guardar
+        // Cambiar el color de la chincheta a verde
         if (marcadores[datos.cv]) {
             marcadores[datos.cv].setIcon(iconoInspeccionado);
+
+            // Guardar en localStorage que este punto fue inspeccionado
+            let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
+            if (!inspeccionados.includes(datos.cv)) {
+                inspeccionados.push(datos.cv);
+                localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
+            }
         }
     })
     .catch(error => {
