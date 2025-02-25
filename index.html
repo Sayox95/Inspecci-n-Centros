@@ -7,24 +7,69 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        #map { height: 400px; }
-        #formulario { display: none; margin-top: 20px; }
-        .info-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            text-align: center;
-        }
-        .info-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-weight: bold;
-        }
-        .info-box input {
-            text-align: center;
-            font-weight: normal;
-        }
+body {
+    font-family: Arial, sans-serif;
+    padding: 10px;
+    margin: 0;
+}
+
+/* Hacer que el mapa y el formulario sean responsivos */
+#map {
+    height: 400px;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Contenedor flexible para los datos del formulario */
+.info-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Se adapta al tamaño de la pantalla */
+    gap: 10px;
+    text-align: center;
+}
+
+/* Ajuste para los elementos del formulario */
+.info-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-weight: bold;
+    width: 100%;
+}
+
+/* Asegurar que los inputs y selects sean responsivos */
+.info-box input,
+.info-box select,
+.info-box textarea {
+    width: 90%;
+    max-width: 300px;
+    padding: 8px;
+    font-size: 16px;
+}
+
+/* Botones responsivos */
+button {
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 300px;
+}
+
+/* Hacer que el formulario sea más legible en móviles */
+@media screen and (max-width: 600px) {
+    .info-container {
+        grid-template-columns: 1fr; /* Una sola columna en pantallas pequeñas */
+    }
+
+    #map {
+        height: 300px; /* Reducir altura del mapa en móviles */
+    }
+
+    h2, h3 {
+        text-align: center;
+    }
+}
     </style>
 </head>
 <body>
@@ -69,35 +114,38 @@
         <br><br>
         <button type="button" onclick="captarCoordenadas()">Captar coordenadas reales</button>
         <br><br>
-        <label>Estado del Suministro:</label>
-        <select id="estado_suministro">
-            <option value="sin_conexion">Sin Conexión</option>
-            <option value="ilegal">Ilegal (Conexión directa Ilegal)</option>
-            <option value="legal">Conexión Legal</option>
-            <option value="legal_servicio_directo">Conexión Legal (Servicio directo)</option>
-        </select>
-        <br><br>
+<label>Estado del Suministro:</label>
+<select id="estado_suministro">
+    <option value="" selected disabled>Seleccione...</option>
+    <option value="sin_conexion">Sin Conexión</option>
+    <option value="ilegal">Ilegal (Conexión directa Ilegal)</option>
+    <option value="legal">Conexión Legal</option>
+    <option value="legal_servicio_directo">Conexión Legal (Servicio directo)</option>
+</select>
+<br><br>
         <label>Distancia real del apoyo al punto de medida en metros:</label>
         <input type="number" id="distancia" min="0" step="0.01">
         <br><br>
-        <label>Cliente dispone de base:</label>
-        <select id="base">
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-        </select>
-        <br><br>
-        <label>Cliente dispone de acometida:</label>
-        <select id="acometida">
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-        </select>
-        <br><br>
-        <label>Instalación Interna Lista:</label>
-        <select id="instalacion">
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-        </select>
-        <br><br>
+<label>Cliente dispone de base:</label>
+<select id="base">
+    <option value="" selected disabled>Seleccione...</option>
+    <option value="si">Sí</option>
+    <option value="no">No</option>
+</select>
+<br><br>
+<label>Cliente dispone de acometida:</label>
+<select id="acometida">
+    <option value="" selected disabled>Seleccione...</option>
+    <option value="si">Sí</option>
+    <option value="no">No</option>
+</select>
+<br><br>
+<label>Instalación Interna Lista:</label>
+<select id="instalacion">
+    <option value="" selected disabled>Seleccione...</option>
+    <option value="si">Sí</option>
+    <option value="no">No</option>
+</select>
         <label>Observaciones Relevantes:</label>
         <textarea id="observaciones"></textarea>
         <br><br>
@@ -128,19 +176,33 @@
                 .bindPopup(`<b>${punto.nombre}</b><br><button onclick="seleccionarPunto(${punto.id})">Inspeccionar</button>`);
         });
 
-        function seleccionarPunto(id) {
-            var punto = puntos.find(p => p.id === id);
-            if (punto) {
-                document.getElementById("nombre_centro").value = punto.nombre;
-                document.getElementById("cv").value = punto.cv;
-                document.getElementById("circuito").value = punto.circuito;
-                document.getElementById("municipio").value = punto.municipio;
-                document.getElementById("sector_electoral").value = punto.sector_electoral;
-                document.getElementById("latitud_original").value = punto.lat;
-                document.getElementById("longitud_original").value = punto.lon;
-                document.getElementById("formulario").style.display = "block";
-            }
-        }
+function seleccionarPunto(id) {
+    var punto = puntos.find(p => p.id === id);
+    if (punto) {
+        document.getElementById("nombre_centro").value = punto.nombre;
+        document.getElementById("cv").value = punto.cv;
+        document.getElementById("circuito").value = punto.circuito;
+        document.getElementById("municipio").value = punto.municipio;
+        document.getElementById("sector_electoral").value = punto.sector_electoral;
+        document.getElementById("latitud_original").value = punto.lat;
+        document.getElementById("longitud_original").value = punto.lon;
+
+        // Restablecer los campos editables del formulario
+        document.getElementById("latitud_nueva").value = "";
+        document.getElementById("longitud_nueva").value = "";
+        document.getElementById("distancia").value = "";
+        document.getElementById("observaciones").value = "";
+
+        // Restablecer los select a la opción vacía
+        document.getElementById("estado_suministro").value = "";
+        document.getElementById("base").value = "";
+        document.getElementById("acometida").value = "";
+        document.getElementById("instalacion").value = "";
+
+        // Mostrar el formulario
+        document.getElementById("formulario").style.display = "block";
+    }
+}
 
         function captarCoordenadas() {
             if (navigator.geolocation) {
