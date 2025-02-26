@@ -163,7 +163,7 @@ button {
 
 <!-- Input para subir imágenes -->
 <label>Subir o tomar fotografías:</label>
-<input type="file" id="fotos" accept="image/*"
+<input type="file" id="fotos" accept="image/*" multiple>
 <br><br>
 
 <!-- Vista previa de las imágenes seleccionadas -->
@@ -282,7 +282,59 @@ function seleccionarPunto(id) {
 var apiURL = "https://script.google.com/macros/s/AKfycbztNheEuBeShIfNJ14uqJk0VuTz6MLjZwMJ7jhPLptStg5v4akuYTWzlcZ7CHgzgx5QFg/exec";  // Reemplázalo con la URL del script de Google
 var apiFotosURL = "https://script.google.com/macros/s/AKfycbzlBkJSsvbOxn1I7-buO1w0fj9nivBxsblgjkuBqPQ5zgFT_rWnOIDge-k7gd8V5dLs/exec"
 
+var imagenesSeleccionadas = []; // 🔹 Array global para almacenar imágenes seleccionadas
+
+document.getElementById("fotos").addEventListener("change", function(event) {
+    var archivos = event.target.files;
+    var previewsContainer = document.getElementById("previews");
+
+    let promises = []; // Para asegurarnos de que todas las imágenes se procesen correctamente
+
+    for (let i = 0; i < archivos.length; i++) {
+        let file = archivos[i];
+        let reader = new FileReader();
+
+        promises.push(new Promise((resolve, reject) => {
+            reader.onload = function(e) {
+                let base64Image = e.target.result.split(",")[1];
+
+                // 🔹 Verificar si la imagen ya existe en `imagenesSeleccionadas` para evitar duplicados
+                if (!imagenesSeleccionadas.includes(base64Image)) {
+                    imagenesSeleccionadas.push(base64Image);
+
+                    // 🔹 Verificar si la imagen ya está en la previsualización antes de agregarla
+                    let existingImages = Array.from(previewsContainer.getElementsByTagName("img")).map(img => img.src);
+                    if (!existingImages.includes(e.target.result)) {
+                        // 🔹 Crear imagen en la previsualización
+                        var img = document.createElement("img");
+                        img.src = e.target.result;
+                        img.style.maxWidth = "100px";
+                        img.style.margin = "5px";
+                        img.style.border = "1px solid #ccc";
+                        previewsContainer.appendChild(img);
+                    }
+                }
+
+                resolve();
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        }));
+    }
+
+    // 🔹 Esperar a que todas las imágenes se procesen antes de continuar
+    Promise.all(promises).then(() => {
+        console.log("Todas las imágenes fueron procesadas correctamente.");
+    }).catch(error => {
+        console.error("Error procesando imágenes:", error);
+    });
+});
+
+
 function guardarInspeccion() {
+    // 🔹 Mostrar el mensaje de carga antes de comenzar
+    document.getElementById("loadingPopup").style.display = "block";
+
     var datos = {
         nombre_centro: document.getElementById("nombre_centro").value,
         cv: document.getElementById("cv").value,
@@ -301,71 +353,73 @@ function guardarInspeccion() {
         observaciones: document.getElementById("observaciones").value
     };
 
-    var fotos = document.getElementById("fotos").files;
-    var promises = [];
-
-    if (fotos.length > 0) {
-        for (let i = 0; i < fotos.length; i++) {
-            promises.push(new Promise((resolve, reject) => {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    var base64String = e.target.result.split(",")[1]; // Extraer solo los datos
-                    datos["foto_" + i] = base64String;
-                    resolve();
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(fotos[i]);
-            }));
+    // 🔹 Agregar imágenes almacenadas en `imagenesSeleccionadas` a `datos`
+    if (imagenesSeleccionadas.length > 0) {
+        for (let i = 0; i < imagenesSeleccionadas.length; i++) {
+            datos[`foto_${i}`] = imagenesSeleccionadas[i]; // 🔹 Guardar correctamente cada imagen
         }
     }
 
-    Promise.all(promises) // 🔹 Esperar a que todas las imágenes sean procesadas antes de enviar
-        .then(() => {
-            console.log("Enviando datos a Google Sheets:", JSON.stringify(datos));
-
-            return fetch(apiURL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(datos)
-            });
-        })
-        .then(() => {
-            console.log("Datos enviados correctamente a Google Sheets.");
-            return fetch(apiFotosURL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(datos)
-            });
-        })
-        .then(() => {
-            console.log("Fotos enviadas correctamente a Google Drive.");
-            alert("Guardado con éxito.");
-
-            // 🔹 Marcar la chincheta en el mapa como inspeccionada
-            var cv = document.getElementById("cv").value;
-            if (marcadores[cv]) {
-                marcadores[cv].setIcon(iconoInspeccionado);
-
-                // 🔹 Guardar en localStorage que este punto fue inspeccionado
-                let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
-                if (!inspeccionados.includes(cv)) {
-                    inspeccionados.push(cv);
-                    localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
-                }
-            }
-
-            // 🔹 Limpiar el formulario después de guardar
-            document.getElementById("formulario").reset();
-            document.getElementById("formulario").style.display = "none";
-        })
-        .catch(error => {
-            console.error("Error al guardar los datos:", error);
-            alert("Error al guardar los datos. Revisa la consola.");
+    // 🔹 Enviar los datos a Google Sheets
+    fetch(apiURL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos)
+    })
+    .then(() => {
+        // 🔹 Enviar las fotos a Google Drive
+        return fetch(apiFotosURL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datos)
         });
+    })
+    .then(() => {
+        // 🔹 Ocultar el mensaje de carga
+        document.getElementById("loadingPopup").style.display = "none";
+
+        // 🔹 Mostrar mensaje de éxito
+        alert("Guardado con éxito.");
+
+        // 🔹 Cambiar el color de la chincheta en el mapa
+        var cv = document.getElementById("cv").value;
+        if (marcadores[cv]) {
+            marcadores[cv].setIcon(iconoInspeccionado);
+
+            // 🔹 Guardar en localStorage que este punto fue inspeccionado
+            let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
+            if (!inspeccionados.includes(cv)) {
+                inspeccionados.push(cv);
+                localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
+            }
+        }
+
+        // 🔹 Resetear el formulario y limpiar imágenes almacenadas
+        document.getElementById("formulario").reset();
+        imagenesSeleccionadas = []; // 🔹 Vaciar la lista de imágenes
+        document.getElementById("fotos").value = ""; // 🔹 Resetear el input de imágenes
+        document.getElementById("previews").innerHTML = ""; // 🔹 Limpiar la vista previa de imágenes
+
+    })
+    .catch(error => {
+        console.error("Error al guardar los datos:", error);
+        alert("Error al guardar los datos. Revisa la consola.");
+
+        // 🔹 Ocultar el mensaje de carga en caso de error
+        document.getElementById("loadingPopup").style.display = "none";
+    });
 }
 
-    </script>
+</script>
+
+<div id="loadingPopup" style="display: none; 
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+    background: rgba(0, 0, 0, 0.7); color: white; padding: 20px; 
+    font-size: 18px; border-radius: 10px; z-index: 1000;">
+    Guardando información... Por favor, espera.
+</div>
+
 </body>
 </html>
