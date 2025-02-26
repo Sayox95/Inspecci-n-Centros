@@ -160,12 +160,42 @@ button {
         <label>Observaciones Relevantes:</label>
         <textarea id="observaciones"></textarea>
         <br><br>
+
+<!-- Input para subir imágenes -->
+<label>Subir o tomar fotografías:</label>
+<input type="file" id="fotos" accept="image/*" capture="environment" multiple>
+<br><br>
+
+<!-- Vista previa de las imágenes seleccionadas -->
+<div id="previews"></div>
+<br><br>
         <button type="button" onclick="guardarInspeccion()">Guardar Inspección</button>
     </form>
 
     <script>
         var map = L.map('map').setView([15.5, -87.5], 7);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// Previsualizar múltiples imágenes seleccionadas
+document.getElementById("fotos").addEventListener("change", function(event) {
+    var files = event.target.files;
+    var previewsContainer = document.getElementById("previews");
+    previewsContainer.innerHTML = ""; // Limpiar previsualizaciones anteriores
+
+    for (let i = 0; i < files.length; i++) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = document.createElement("img");
+            img.src = e.target.result;
+            img.style.maxWidth = "100px";
+            img.style.margin = "5px";
+            img.style.border = "1px solid #ccc";
+            previewsContainer.appendChild(img);
+        };
+        reader.readAsDataURL(files[i]);
+    }
+});
+
 
     var iconoNormal = L.icon({
         iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png', // Icono azul (punto no inspeccionado)
@@ -250,6 +280,7 @@ function seleccionarPunto(id) {
         }
 
 var apiURL = "https://script.google.com/macros/s/AKfycbztNheEuBeShIfNJ14uqJk0VuTz6MLjZwMJ7jhPLptStg5v4akuYTWzlcZ7CHgzgx5QFg/exec";  // Reemplázalo con la URL del script de Google
+var apiFotosURL = "https://script.google.com/macros/s/AKfycbzlBkJSsvbOxn1I7-buO1w0fj9nivBxsblgjkuBqPQ5zgFT_rWnOIDge-k7gd8V5dLs/exec"
 
 function guardarInspeccion() {
     var datos = {
@@ -270,35 +301,65 @@ function guardarInspeccion() {
         observaciones: document.getElementById("observaciones").value
     };
 
-    fetch(apiURL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(datos),
-        mode: "no-cors"
-    })
-    .then(response => {
-        console.log("Datos enviados correctamente.");
-        alert("Guardado con éxito");
+    var fotos = document.getElementById("fotos").files;
+    var promises = [];
 
-        // Cambiar el color de la chincheta a verde
-        if (marcadores[datos.cv]) {
-            marcadores[datos.cv].setIcon(iconoInspeccionado);
-
-            // Guardar en localStorage que este punto fue inspeccionado
-            let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
-            if (!inspeccionados.includes(datos.cv)) {
-                inspeccionados.push(datos.cv);
-                localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
-            }
+    if (fotos.length > 0) {
+        for (let i = 0; i < fotos.length; i++) {
+            promises.push(new Promise((resolve, reject) => {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var base64String = e.target.result.split(",")[1]; // Extraer solo los datos
+                    datos["foto_" + i] = base64String;
+                    resolve();
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(fotos[i]);
+            }));
         }
-    })
-    .catch(error => {
-        console.error("Error al guardar los datos:", error);
-        alert("Error al guardar los datos. Por favor, intenta de nuevo.");
-    });
+    }
+
+    Promise.all(promises)
+        .then(() => {
+            console.log("Enviando datos al Google Sheets:", JSON.stringify(datos));
+
+            return fetch(apiURL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(datos)
+            });
+        })
+        .then(() => {
+            console.log("Datos enviados correctamente a Google Sheets.");
+            return fetch(apiFotosURL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(datos)
+            });
+        })
+        .then(() => {
+            console.log("Fotos enviadas correctamente a Google Drive.");
+            alert("Guardado con éxito.");
+
+            var cv = document.getElementById("cv").value;
+            if (marcadores[cv]) {
+                marcadores[cv].setIcon(iconoInspeccionado);
+
+                let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
+                if (!inspeccionados.includes(cv)) {
+                    inspeccionados.push(cv);
+                    localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Error al guardar los datos:", error);
+            alert("Error al guardar los datos. Revisa la consola.");
+        });
 }
+
 
     </script>
 </body>
