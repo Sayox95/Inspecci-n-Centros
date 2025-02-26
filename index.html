@@ -163,7 +163,7 @@ button {
 
 <!-- Input para subir imágenes -->
 <label>Subir o tomar fotografías:</label>
-<input type="file" id="fotos" accept="image/*" capture="environment" multiple>
+<input type="file" id="fotos" accept="image/*"
 <br><br>
 
 <!-- Vista previa de las imágenes seleccionadas -->
@@ -319,9 +319,9 @@ function guardarInspeccion() {
         }
     }
 
-    Promise.all(promises)
+    Promise.all(promises) // 🔹 Esperar a que todas las imágenes sean procesadas antes de enviar
         .then(() => {
-            console.log("Enviando datos al Google Sheets:", JSON.stringify(datos));
+            console.log("Enviando datos a Google Sheets:", JSON.stringify(datos));
 
             return fetch(apiURL, {
                 method: "POST",
@@ -343,23 +343,28 @@ function guardarInspeccion() {
             console.log("Fotos enviadas correctamente a Google Drive.");
             alert("Guardado con éxito.");
 
+            // 🔹 Marcar la chincheta en el mapa como inspeccionada
             var cv = document.getElementById("cv").value;
             if (marcadores[cv]) {
                 marcadores[cv].setIcon(iconoInspeccionado);
 
+                // 🔹 Guardar en localStorage que este punto fue inspeccionado
                 let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
                 if (!inspeccionados.includes(cv)) {
                     inspeccionados.push(cv);
                     localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
                 }
             }
+
+            // 🔹 Limpiar el formulario después de guardar
+            document.getElementById("formulario").reset();
+            document.getElementById("formulario").style.display = "none";
         })
         .catch(error => {
             console.error("Error al guardar los datos:", error);
             alert("Error al guardar los datos. Revisa la consola.");
         });
 }
-
 
     </script>
 </body>
