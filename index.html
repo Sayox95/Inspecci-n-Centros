@@ -181,6 +181,61 @@ button {
         <label>Observaciones Relevantes:</label>
         <textarea id="observaciones"></textarea>
         <br><br>
+<label>Requiere adecuación de red:</label>
+    <select id="requiere_adecuacion">
+      <option value="" selected disabled>Seleccione...</option>
+      <option value="Si">Si</option>
+      <option value="No">No</option>
+    </select>
+    <br><br>
+    <div id="adecuacion_extra" style="display: none;">
+  <div class="info-container" style="grid-template-columns: 1fr;">
+    <div class="info-box">
+      <label>Cantidad de postes:</label>
+      <input type="number" id="cantidad_postes" min="0">
+    </div>
+    <div class="info-box">
+      <label>Material de poste recomendado:</label>
+      <select id="material_poste">
+        <option value="" selected disabled>Seleccione...</option>
+        <option value="Madera">Madera</option>
+        <option value="Concreto">Concreto</option>
+        <option value="Metal">Metal</option>
+      </select>
+    </div>
+    <div class="info-box">
+      <label>Altura de poste recomendado (Metros):</label>
+      <input type="number" id="altura_poste" min="0" step="0.01">
+    </div>
+    <div class="info-box">
+      <label>Cantidad de transformadores:</label>
+      <input type="number" id="cantidad_transformadores" min="0">
+    </div>
+    <div class="info-box">
+      <label>Potencia de transformador:</label>
+      <select id="potencia_transformador">
+        <option value="" selected disabled>Seleccione...</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="75">75</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+    <div class="info-box">
+      <label>Línea primaria (Kilómetros):</label>
+      <input type="number" id="linea_primaria" min="0" step="0.01">
+    </div>
+    <div class="info-box">
+      <label>Línea secundaria (Kilómetros):</label>
+      <input type="number" id="linea_secundaria" min="0" step="0.01">
+    </div>
+    <div class="info-box">
+      <label>Otros materiales:</label>
+      <textarea id="otros_materiales"></textarea>
+    </div>
+  </div>
+  <br><br>
+</div>
         <!-- Input para subir imágenes -->
         <label>Subir o tomar fotografías:</label>
         <input type="file" id="fotos" accept="image/*" multiple>
@@ -196,23 +251,29 @@ button {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         // Previsualizar múltiples imágenes seleccionadas
-        document.getElementById("fotos").addEventListener("change", function(event) {
-            var files = event.target.files;
-            var previewsContainer = document.getElementById("previews");
-            previewsContainer.innerHTML = "";
-            for (let i = 0; i < files.length; i++) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    var img = document.createElement("img");
-                    img.src = e.target.result;
-                    img.style.maxWidth = "100px";
-                    img.style.margin = "5px";
-                    img.style.border = "1px solid #ccc";
-                    previewsContainer.appendChild(img);
-                };
-                reader.readAsDataURL(files[i]);
+document.getElementById("fotos").addEventListener("change", function(event) {
+    var archivos = event.target.files;
+    var previewsContainer = document.getElementById("previews");
+    for (let i = 0; i < archivos.length; i++) {
+        let file = archivos[i];
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let base64Image = e.target.result.split(",")[1];
+            // Si la imagen ya existe, no la agregamos
+            if (!imagenesSeleccionadas.includes(base64Image)) {
+                imagenesSeleccionadas.push(base64Image);
+                var img = document.createElement("img");
+                img.src = e.target.result;
+                img.style.maxWidth = "100px";
+                img.style.margin = "5px";
+                img.style.border = "1px solid #ccc";
+                previewsContainer.appendChild(img);
             }
-        });
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
 
         var iconoNormal = L.icon({
             iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
@@ -227,6 +288,7 @@ button {
         var marcadores = {};
 
         // Actualicé los puntos agregando la propiedad "sector_asignado"
+
         var puntos = [
 { id: 1, nombre: "ESC. MANUEL BONILLA", cv: "18042002", circuito: "PGR319", municipio: "1804-EL PROGRESO", sector_electoral: "AGUA BLANCA SUR", lat: 15.24795944, lon: -87.89243188, sector_asignado: "EL PROGRESO" },
 { id: 2, nombre: "CEB FRANCISCO MORAZAN", cv: "18042019", circuito: "GUA356", municipio: "1804-EL PROGRESO", sector_electoral: "GUAYMITAS", lat: 15.50040535, lon: -87.62187199, sector_asignado: "EL PROGRESO" },
@@ -438,7 +500,7 @@ button {
             }
         }
 
-        var apiURL = "https://script.google.com/macros/s/AKfycbwOiaYUlI6-hFMmdRwA3ugyVU1g985cm24XhAyIv2n5lgZWzOHGJGHz_w6j_yx_fw-D3A/exec";
+        var apiURL = "https://script.google.com/macros/s/AKfycbztPeNTrJhowtlrk5GfCLIiU_8tvG5pQWaUkOqKBZsMrrle8ZvBWvORMgIoHaBfmK_1Dw/exec";
         var apiFotosURL = "https://script.google.com/macros/s/AKfycbxYC5QEXFankc9vRm7fFzL4X-eWCz1dyoOjbNBLiksemKJCh8zqJvQMXJo410NyILR3/exec"
         var imagenesSeleccionadas = [];
 
@@ -477,26 +539,36 @@ button {
             });
         });
 
-        function guardarInspeccion() {
-            document.getElementById("loadingPopup").style.display = "block";
-            var datos = {
-                nombre_centro: document.getElementById("nombre_centro").value,
-                cv: document.getElementById("cv").value,
-                circuito: document.getElementById("circuito").value,
-                municipio: document.getElementById("municipio").value,
-                sector_electoral: document.getElementById("sector_electoral").value,
-		sector_asignado: document.getElementById("sector_asignado_filter").value,
-                latitud_original: document.getElementById("latitud_original").value,
-                longitud_original: document.getElementById("longitud_original").value,
-                latitud_nueva: document.getElementById("latitud_nueva").value,
-                longitud_nueva: document.getElementById("longitud_nueva").value,
-                estado_suministro: document.getElementById("estado_suministro").value,
-                distancia: document.getElementById("distancia").value,
-                base: document.getElementById("base").value,
-                acometida: document.getElementById("acometida").value,
-                instalacion: document.getElementById("instalacion").value,
-                observaciones: document.getElementById("observaciones").value
-            };
+function guardarInspeccion() {
+    document.getElementById("loadingPopup").style.display = "block";
+    var datos = {
+        nombre_centro: document.getElementById("nombre_centro").value,
+        cv: document.getElementById("cv").value,
+        circuito: document.getElementById("circuito").value,
+        municipio: document.getElementById("municipio").value,
+        sector_electoral: document.getElementById("sector_electoral").value,
+        sector_asignado: document.getElementById("sector_asignado_filter").value,
+        latitud_original: document.getElementById("latitud_original").value,
+        longitud_original: document.getElementById("longitud_original").value,
+        latitud_nueva: document.getElementById("latitud_nueva").value,
+        longitud_nueva: document.getElementById("longitud_nueva").value,
+        estado_suministro: document.getElementById("estado_suministro").value,
+        distancia: document.getElementById("distancia").value,
+        base: document.getElementById("base").value,
+        acometida: document.getElementById("acometida").value,
+        instalacion: document.getElementById("instalacion").value,
+        observaciones: document.getElementById("observaciones").value,
+        // Nueva sección de preguntas:
+        requiere_adecuacion: document.getElementById("requiere_adecuacion").value,
+        cantidad_postes: document.getElementById("cantidad_postes").value,
+        material_poste: document.getElementById("material_poste").value,
+        altura_poste: document.getElementById("altura_poste").value,
+        cantidad_transformadores: document.getElementById("cantidad_transformadores").value,
+        potencia_transformador: document.getElementById("potencia_transformador").value,
+        linea_primaria: document.getElementById("linea_primaria").value,
+        linea_secundaria: document.getElementById("linea_secundaria").value,
+        otros_materiales: document.getElementById("otros_materiales").value
+    };
             if (imagenesSeleccionadas.length > 0) {
                 for (let i = 0; i < imagenesSeleccionadas.length; i++) {
                     datos[`foto_${i}`] = imagenesSeleccionadas[i];
@@ -539,6 +611,11 @@ button {
                 document.getElementById("loadingPopup").style.display = "none";
             });
         }
+        // Agregar el listener para mostrar/ocultar las preguntas adicionales según "Requiere adecuación de red"
+        document.getElementById("requiere_adecuacion").addEventListener("change", function() {
+            var extraBlock = document.getElementById("adecuacion_extra");
+            extraBlock.style.display = (this.value === "Si") ? "block" : "none";
+        });
     </script>
 
     <div id="loadingPopup" style="display: none; 
