@@ -1,634 +1,329 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inspección de Centros</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <style>
-body {
-    font-family: Arial, sans-serif;
-    padding: 10px;
-    margin: 0;
-}
-
-/* Hacer que el mapa y el formulario sean responsivos */
-#map {
-    height: 400px;
-    width: 100%;
-    max-width: 100%;
-}
-
-/* Contenedor flexible para los datos del formulario */
-.info-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    text-align: center;
-}
-
-/* Ajuste para los elementos del formulario */
-.info-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-weight: bold;
-    width: 100%;
-}
-
-/* Asegurar que los inputs y selects sean responsivos */
-.info-box input,
-.info-box select,
-.info-box textarea {
-    width: 90%;
-    max-width: 300px;
-    padding: 8px;
-    font-size: 16px;
-}
-
-/* Botones responsivos */
-button {
-    padding: 10px;
-    font-size: 16px;
-    cursor: pointer;
-    width: 100%;
-    max-width: 300px;
-}
-
-/* Hacer que el formulario sea más legible en móviles */
-@media screen and (max-width: 600px) {
-    .info-container {
-        grid-template-columns: 1fr;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inspecciones v2 - Mobile con FAB de filtros</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+    #map { height: 100%; width: 100%; position: relative; }
+    #loading-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.9);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2em; z-index: 1000;
     }
-    #map {
-        height: 300px;
+    #data-loading {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2em;
+      z-index: 1005;
+    
+      flex-direction: column;
     }
-    h2, h3 {
-        text-align: center;
+
+    /* Spinner circular */
+    #data-loading .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
     }
-}
-    </style>
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    /* FAB de filtros */
+    #filter-fab {
+      position: absolute;
+      bottom: 16px; right: 16px;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: #007bff; color: white;
+      border: none;
+      font-size: 24px;
+      z-index: 1003;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* Bottom sheet para filtros */
+    #filter-sheet {
+      position: absolute; bottom: 0; left: 0;
+      width: 100%; max-height: 50%;
+      background: #fff; box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      border-top-left-radius: 12px; border-top-right-radius: 12px;
+      transform: translateY(100%); transition: transform 0.3s ease;
+      z-index: 1002; overflow-y: auto;
+    }
+    #filter-sheet.open { transform: translateY(0); }
+    #filter-header {
+      padding: 12px; border-bottom: 1px solid #ddd;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #filter-header h2 { margin: 0; font-size: 1.2em; }
+    #close-filter {
+      background: transparent; border: none; font-size: 1.5em; cursor: pointer;
+    }
+    #filter-content { padding: 12px; }
+    #filter-content label {
+      display: block; margin-bottom: 8px; font-size: 1em;
+    }
+    #filter-content select {
+      width: 100%; padding: 8px; font-size: 1em; border-radius: 4px; border: 1px solid #ccc;
+    }
+    #apply-filters {
+      margin-top: 12px; padding: 12px;
+      width: 100%; font-size: 1em;
+      border: none; border-radius: 6px; background: #28a745; color: white;
+    }
+    /* Bottom sheet para inspección */
+    #sheet {
+      position: absolute; bottom: 0; left: 0;
+      width: 100%; max-height: 80%;
+      background: #fff; box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      border-top-left-radius: 12px; border-top-right-radius: 12px;
+      transform: translateY(100%); transition: transform 0.3s ease;
+      z-index: 1001; overflow-y: auto;
+    }
+    #sheet.open { transform: translateY(0); }
+    #sheet-header {
+      padding: 12px; border-bottom: 1px solid #ddd;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #sheet-header h2 { margin: 0; font-size: 1.2em; }
+    #close-sheet {
+      background: transparent; border: none; font-size: 1.5em; cursor: pointer;
+    }
+    #progress { padding: 0 12px; font-size: 0.9em; color: #555; }
+    details { margin: 8px 12px; }
+    summary {
+      font-weight: bold; font-size: 1em; padding: 8px;
+      background: #f5f5f5; border-radius: 4px; cursor: pointer;
+    }
+    details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    details div { padding: 8px; border: 1px solid #f5f5f5; border-top: none; }
+    label { display: block; margin: 8px 0 4px; font-size: 0.9em; }
+    input[readonly], input, select, textarea {
+      width: 100%; box-sizing: border-box; padding: 8px; font-size: 1em;
+      border: 1px solid #ccc; border-radius: 4px;
+    }
+    textarea { resize: vertical; height: 60px; }
+    button#save-btn {
+      margin: 12px; padding: 12px; width: calc(100% - 24px);
+      font-size: 1em; border: none; border-radius: 6px;
+      background: #007bff; color: white; cursor: pointer;
+    }
+    /* Snackbar */
+    #snackbar {
+      visibility: hidden; min-width: 200px; margin-left: -100px;
+      background-color: #333; color: #fff; text-align: center;
+      border-radius: 4px; padding: 12px; position: fixed;
+      left: 50%; bottom: 30px; font-size: 1em; z-index: 1004;
+    }
+    #snackbar.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+    @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+    @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+  </style>
 </head>
 <body>
-    <h2>Inspección de Centros</h2>
-
-    <!-- Dropdown de Sector Asignado -->
-    <div id="filtro_sector" style="margin-bottom: 10px;">
-        <label for="sector_asignado_filter">Sector Asignado:</label>
-        <select id="sector_asignado_filter">
-             <option value="todos" selected>Todos los Sectores</option>
-             <option value="CHOLOMA">CHOLOMA</option>
-             <option value="CHOLUTECA">CHOLUTECA</option>
-             <option value="COMAYAGUA">COMAYAGUA</option>
-             <option value="DANLI">DANLI</option>
-             <option value="EL PROGRESO">EL PROGRESO</option>
-             <option value="JUTICALPA">JUTICALPA</option>
-             <option value="LA CEIBA">LA CEIBA</option>
-             <option value="SAN PEDRO SULA CENTRO">SAN PEDRO SULA CENTRO</option>
-             <option value="SANTA CRUZ DE YOJOA">SANTA CRUZ DE YOJOA</option>
-             <option value="SANTA ROSA DE COPAN">SANTA ROSA DE COPAN</option>
-             <option value="TEGUCIGALPA">TEGUCIGALPA</option>
-             <option value="TOCOA">TOCOA</option>
-             <option value="VILLANUEVA">VILLANUEVA</option>
+  <div id="map">
+    <div id="loading-overlay">Cargando información...</div>
+    <div id="data-loading">
+    <div class="spinner"></div>
+    <div>Cargando Datos...</div>
+  </div>
+  </div>
+  <button id="filter-fab">🔍</button>
+  <div id="filter-sheet">
+    <div id="filter-header">
+      <h2>Filtros</h2>
+      <button id="close-filter">&times;</button>
+    </div>
+    <div id="filter-content">
+      <label>Sector:
+        <select id="sectorFilter">
+          <option value="all">Todos los sectores</option>
         </select>
-    </div>
-
-    <div id="leyenda" style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
-        <div style="display: flex; align-items: center;">
-            <img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" width="20" height="20" alt="Pendiente">
-            <span style="margin-left: 5px;">Pendiente</span>
-        </div>
-        <div style="display: flex; align-items: center;">
-            <img src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" width="20" height="20" alt="Inspeccionado">
-            <span style="margin-left: 5px;">Inspeccionado</span>
-        </div>
-    </div>
-
-    <div id="map"></div>
-    <form id="formulario">
-        <h3>Formulario de Inspección</h3>
-        <div class="info-container">
-            <div class="info-box">
-                <label>Nombre del Centro</label>
-                <input type="text" id="nombre_centro" readonly>
-            </div>
-            <div class="info-box">
-                <label>CV</label>
-                <input type="text" id="cv" readonly>
-            </div>
-            <div class="info-box">
-                <label>Circuito</label>
-                <input type="text" id="circuito" readonly>
-            </div>
-            <div class="info-box">
-                <label>Municipio</label>
-                <input type="text" id="municipio" readonly>
-            </div>
-            <div class="info-box">
-                <label>Sector Electoral</label>
-                <input type="text" id="sector_electoral" readonly>
-            </div>
-        </div>
-        <br>
-        <label>Latitud Original:</label>
-        <input type="text" id="latitud_original" readonly>
-        <br><br>
-        <label>Longitud Original:</label>
-        <input type="text" id="longitud_original" readonly>
-        <br><br>
-<label>Latitud Nueva:</label>
-<input type="text" id="latitud_nueva">
-<br><br>
-<label>Longitud Nueva:</label>
-<input type="text" id="longitud_nueva">
-        <br><br>
-        <button type="button" onclick="captarCoordenadas()">Captar coordenadas reales</button>
-        <br><br>
-        <label>Estado del Suministro:</label>
-        <select id="estado_suministro">
-            <option value="" selected disabled>Seleccione...</option>
-            <option value="sin_conexion">Sin Conexión</option>
-            <option value="ilegal">Ilegal (Conexión directa Ilegal)</option>
-            <option value="legal">Conexión Legal</option>
-            <option value="legal_servicio_directo">Conexión Legal (Servicio directo)</option>
-        </select>
-        <br><br>
-        <label>Distancia real del apoyo al punto de medida en metros:</label>
-        <input type="number" id="distancia" min="0" step="0.01">
-        <br><br>
-        <label>Cliente dispone de base:</label>
-        <select id="base">
-            <option value="" selected disabled>Seleccione...</option>
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-        </select>
-        <br><br>
-        <label>Cliente dispone de acometida:</label>
-        <select id="acometida">
-            <option value="" selected disabled>Seleccione...</option>
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-        </select>
-        <br><br>
-        <label>Instalación Interna Lista:</label>
-        <select id="instalacion">
-            <option value="" selected disabled>Seleccione...</option>
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-        </select>
-        <br><br>
-        <label>Observaciones Relevantes:</label>
-        <textarea id="observaciones"></textarea>
-        <br><br>
-<label>Requiere adecuación de red:</label>
-    <select id="requiere_adecuacion">
-      <option value="" selected disabled>Seleccione...</option>
-      <option value="Si">Si</option>
-      <option value="No">No</option>
-    </select>
-    <br><br>
-    <div id="adecuacion_extra" style="display: none;">
-  <div class="info-container" style="grid-template-columns: 1fr;">
-    <div class="info-box">
-      <label>Cantidad de postes:</label>
-      <input type="number" id="cantidad_postes" min="0">
-    </div>
-    <div class="info-box">
-      <label>Material de poste recomendado:</label>
-      <select id="material_poste">
-        <option value="" selected disabled>Seleccione...</option>
-        <option value="Madera">Madera</option>
-        <option value="Concreto">Concreto</option>
-        <option value="Metal">Metal</option>
-      </select>
-    </div>
-    <div class="info-box">
-  <label>Altura de poste recomendado (Metros):</label>
-  <select id="altura_poste">
-    <option value="" selected disabled>Seleccione...</option>
-    <option value="30">30</option>
-    <option value="35">35</option>
-    <option value="40">40</option>
-    <option value="45">45</option>
-  </select>
-</div>
-    <div class="info-box">
-      <label>Cantidad de transformadores:</label>
-      <input type="number" id="cantidad_transformadores" min="0">
-    </div>
-    <div class="info-box">
-      <label>Potencia de transformador:</label>
-      <select id="potencia_transformador">
-        <option value="" selected disabled>Seleccione...</option>
-        <option value="25">25</option>
-        <option value="50">50</option>
-        <option value="75">75</option>
-        <option value="100">100</option>
-      </select>
-    </div>
-    <div class="info-box">
-      <label>Línea primaria (Kilómetros):</label>
-      <input type="number" id="linea_primaria" min="0" step="0.01">
-    </div>
-    <div class="info-box">
-      <label>Línea secundaria (Kilómetros):</label>
-      <input type="number" id="linea_secundaria" min="0" step="0.01">
-    </div>
-    <div class="info-box">
-      <label>Otros materiales:</label>
-      <textarea id="otros_materiales"></textarea>
+      </label>
+      <button id="apply-filters">Aplicar</button>
     </div>
   </div>
-  <br><br>
-</div>
-        <!-- Input para subir imágenes -->
-        <label>Subir o tomar fotografías:</label>
-        <input type="file" id="fotos" accept="image/*" multiple>
-        <br><br>
-        <!-- Vista previa de las imágenes seleccionadas -->
-        <div id="previews"></div>
-        <br><br>
-        <button type="button" onclick="guardarInspeccion()">Guardar Inspección</button>
-    </form>
 
-    <script>
-        var map = L.map('map').setView([15.5, -87.5], 7);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-        // Previsualizar múltiples imágenes seleccionadas
-document.getElementById("fotos").addEventListener("change", function(event) {
-    var archivos = event.target.files;
-    var previewsContainer = document.getElementById("previews");
-    for (let i = 0; i < archivos.length; i++) {
-        let file = archivos[i];
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            let base64Image = e.target.result.split(",")[1];
-            // Si la imagen ya existe, no la agregamos
-            if (!imagenesSeleccionadas.includes(base64Image)) {
-                imagenesSeleccionadas.push(base64Image);
-                var img = document.createElement("img");
-                img.src = e.target.result;
-                img.style.maxWidth = "100px";
-                img.style.margin = "5px";
-                img.style.border = "1px solid #ccc";
-                previewsContainer.appendChild(img);
-            }
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-
-        var iconoNormal = L.icon({
-            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-            iconSize: [32, 32],
-            iconAnchor: [16, 32]
-        });
-        var iconoInspeccionado = L.icon({
-            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
-            iconSize: [32, 32],
-            iconAnchor: [16, 32]
-        });
-        var marcadores = {};
-
-        // Actualicé los puntos agregando la propiedad "sector_asignado"
-
-        var puntos = [
-{ id: 1, nombre: "ESC. MANUEL BONILLA", cv: "18042002", circuito: "PGR319", municipio: "1804-EL PROGRESO", sector_electoral: "AGUA BLANCA SUR", lat: 15.24795944, lon: -87.89243188, sector_asignado: "EL PROGRESO" },
-{ id: 2, nombre: "CEB FRANCISCO MORAZAN", cv: "18042019", circuito: "GUA356", municipio: "1804-EL PROGRESO", sector_electoral: "GUAYMITAS", lat: 15.50040535, lon: -87.62187199, sector_asignado: "EL PROGRESO" },
-{ id: 3, nombre: "CEB JOSE TRINIDAD REYES", cv: "8052001", circuito: "CYG386", municipio: "0805-EL PORVENIR", sector_electoral: "EL PORVENIR", lat: 14.75996823, lon: -87.56101591, sector_asignado: "COMAYAGUA" },
-{ id: 4, nombre: "CEB NUESTRA SRA DE LA MERCED", cv: "5061026", circuito: "RNA385", municipio: "0506-PUERTO CORTES", sector_electoral: "NUEVOS HORIZONTES", lat: 15.838818, lon: -87.89909, sector_asignado: "CHOLOMA" },
-{ id: 5, nombre: "INST. TIBURCIO CARIAS ANDINO (ANEXO)", cv: "16271001", circuito: "LEC358", municipio: "1627-LAS VEGAS", sector_electoral: "BO. SANTA CECILIA", lat: 14.86674262, lon: -88.81732367, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 6, nombre: "CEB NORBERTO QUEZADA", cv: "18072036", circuito: "CCE342", municipio: "1807-OLANCHITO", sector_electoral: "SAN JOSE", lat: 15.47223699, lon: -86.64531056, sector_asignado: "TOCOA" },
-{ id: 7, nombre: "ESC. INDEPENDENCIA", cv: "10142001", circuito: "ERA371", municipio: "1014-SAN MIGUELITO", sector_electoral: "SAN MIGUELITO", lat: 14.34850339, lon: -88.36785705, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 8, nombre: "ESC. DIONISIO DE HERRERA", cv: "6092002", circuito: "PRD360", municipio: "0609-NAMASIGUE", sector_electoral: "SAN BERNARDO", lat: 13.09180258, lon: -87.13912174, sector_asignado: "CHOLUTECA" },
-{ id: 9, nombre: "ESC. 4 DE JULIO", cv: "5062005", circuito: "RNA385", municipio: "0506-PUERTO CORTES", sector_electoral: "CALAN", lat: 15.736592, lon: -87.83063, sector_asignado: "CHOLOMA" },
-{ id: 10, nombre: "ESC. REPUBLICA DE HONDURAS", cv: "7022001", circuito: "DAN389", municipio: "0702-ALAUCA", sector_electoral: "ALAUCA", lat: 13.85065916, lon: -86.71023656, sector_asignado: "DANLI" },
-{ id: 11, nombre: "CEB. VICENTE ALEMAN", cv: "15032018", circuito: "CAT375", municipio: "1503-CATACAMAS", sector_electoral: "SAN JOSE DE RIO TINTO", lat: 14.92953062, lon: -85.68967016, sector_asignado: "JUTICALPA" },
-{ id: 12, nombre: "CEB 28 DE SEPTIEMBRE", cv: "10162002", circuito: "CYG317", municipio: "1016-YAMARANGUILA", sector_electoral: "AZACUALPA", lat: 14.36861618, lon: -88.22765209, sector_asignado: "COMAYAGUA" },
-{ id: 13, nombre: "CEB DIONISIO DE HERRERA", cv: "7152014", circuito: "DAN387", municipio: "0715-TEUPASENTI", sector_electoral: "SANTA ROSA No. 1", lat: 14.18273553, lon: -86.70627027, sector_asignado: "DANLI" },
-{ id: 14, nombre: "ESC. FRANCISCO MORAZAN", cv: "7192022", circuito: "CHI363", municipio: "0719-TROJES", sector_electoral: "ESPAÑOL", lat: 13.96199244, lon: -85.79523866, sector_asignado: "DANLI" },
-{ id: 15, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "16182007", circuito: "NCO364", municipio: "1618-QUIMISTAN", sector_electoral: "LA CEIBITA", lat: 15.307345, lon: -88.252519, sector_asignado: "VILLANUEVA" },
-{ id: 16, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "13222001", circuito: "CYG317", municipio: "1322-SANTA CRUZ", sector_electoral: "SANTA CRUZ", lat: 14.33228468, lon: -88.15193566, sector_asignado: "COMAYAGUA" },
-{ id: 17, nombre: "ESC. JOSE TRINIDAD CABAÑAS", cv: "3012048", circuito: "CYG326", municipio: "0301-COMAYAGUA", sector_electoral: "PALMEROLA No. 1", lat: 14.19716482, lon: -87.59976005, sector_asignado: "COMAYAGUA" },
-{ id: 18, nombre: "ESC. JOSE RAMON VILLEDA MORALES", cv: "6062011", circuito: "PRD360", municipio: "0606-EL TRIUNFO", sector_electoral: "EL ESTRIBO", lat: 13.02589918, lon: -87.02974266, sector_asignado: "CHOLUTECA" },
-{ id: 19, nombre: "CEB. CAMPESINO LENCA", cv: "12162008", circuito: "CYG317", municipio: "1216-SANTA ELENA", sector_electoral: "OPALACA ABAJO", lat: 14.06922445, lon: -88.13253772, sector_asignado: "COMAYAGUA" },
-{ id: 20, nombre: "ESC. DIONISIO DE HERRERA", cv: "12122004", circuito: "ERA372", municipio: "1212-SAN JOSE", sector_electoral: "LA FLORIDA", lat: 14.20954249, lon: -88.88910111, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 21, nombre: "CEB PEDRO NUFIO", cv: "17082008", circuito: "PAV368", municipio: "1708-SAN FRANCISCO DE CORAY", sector_electoral: "MONTECRISTO", lat: 13.65323281, lon: -87.53129792, sector_asignado: "CHOLUTECA" },
-{ id: 22, nombre: "ESC. RIGOBERTO SANDOVAL COREA", cv: "18081008", circuito: "PGR319", municipio: "1808-SANTA RITA", sector_electoral: "COL. GUANCHIAS", lat: 15.22081501, lon: -87.87326849, sector_asignado: "EL PROGRESO" },
-{ id: 23, nombre: "ESC. JOSE TRINIDAD CABAÑAS", cv: "7042004", circuito: "DAN389", municipio: "0704-EL PARAISO", sector_electoral: "DIFICULTADES", lat: 13.79718367, lon: -86.50556044, sector_asignado: "DANLI" },
-{ id: 24, nombre: "CEB LUIS LANDA", cv: "1082011", circuito: "TEL309", municipio: "0108-ARIZONA", sector_electoral: "SUYAPA DE LEAN O MATARAS", lat: 15.5656216, lon: -87.4050161, sector_asignado: "LA CEIBA" },
-{ id: 25, nombre: "CEB FRANCISCO MORAZAN", cv: "10162006", circuito: "ERA371", municipio: "1016-YAMARANGUILA", sector_electoral: "PLANES", lat: 14.36432292, lon: -88.26531378, sector_asignado: "COMAYAGUA" },
-{ id: 26, nombre: "CEB JOSE CECILIO DEL VALLE", cv: "12122003", circuito: "CYG317", municipio: "1212-SAN JOSE", sector_electoral: "EL PEDERNAL", lat: 14.22053367, lon: -87.94268018, sector_asignado: "COMAYAGUA" },
-{ id: 27, nombre: "ESC. ESFUERZO SANPEDRANO", cv: "13192005", circuito: "LFL334", municipio: "1319-SAN MANUEL COLOHETE", sector_electoral: "SAN PEDRO", lat: 14.43933265, lon: -88.70345099, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 28, nombre: "ESC. MIGUEL MORAZAN", cv: "13232001", circuito: "SRS339", municipio: "1323-TALGUA", sector_electoral: "TALGUA", lat: 14.69707642, lon: -88.7088301, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 29, nombre: "ESC. JUANA CASTRILLO", cv: "4132008", circuito: "LEC361", municipio: "0413-NUEVA ARCADIA", sector_electoral: "SAN PABLO DEL ROBLE", lat: 15.04219717, lon: -88.72521044, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 30, nombre: "JESUS MILLA SELVA", cv: "18022006", circuito: "CCE341", municipio: "1802-ARENAL", sector_electoral: "TIERRA BLANCA", lat: 15.39941225, lon: -86.78524872, sector_asignado: "TOCOA" },
-{ id: 31, nombre: "CEB PRESENTACIÓN CENTENO", cv: "13112006", circuito: "NIS332", municipio: "1311-LA UNION", sector_electoral: "SAN BARTOLO", lat: 14.8543071, lon: -88.43856573, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 32, nombre: "ESC. COYOCUTENA", cv: "13052008", circuito: "ERA371", municipio: "1305-ERANDIQUE", sector_electoral: "JOSCAMON", lat: 14.19820377, lon: -88.37095286, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 33, nombre: "CEB. JOSE TRINIDAD CABAÑAS", cv: "16012005", circuito: "NIS332", municipio: "1601-SANTA BARBARA", sector_electoral: "LA CUESTA", lat: 14.92202428, lon: -88.20923299, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 34, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "1042006", circuito: "SIS330", municipio: "0104-JUTIAPA", sector_electoral: "ILAMAPA", lat: 15.61066333, lon: -86.4219754, sector_asignado: "LA CEIBA" },
-{ id: 35, nombre: "CEB REPUBLICA DE HONDURAS", cv: "17012029", circuito: "PAV368", municipio: "1701-NACAOME", sector_electoral: "EL JOCOTAL", lat: 13.5901192, lon: -87.64651543, sector_asignado: "CHOLUTECA" },
-{ id: 36, nombre: "CEB NAPOLEÓN ARÍAS CRISTALES", cv: "17062004", circuito: "PAV368", municipio: "1706-GOASCORAN", sector_electoral: "EL RESBALOSO", lat: 13.59647776, lon: -87.66627701, sector_asignado: "CHOLUTECA" },
-{ id: 37, nombre: "ESC. JUAN DE LA CRUZ AVELAR", cv: "3012052", circuito: "CYG386", municipio: "0301-COMAYAGUA", sector_electoral: "EL PORVENIR", lat: 14.49773616, lon: -87.72696077, sector_asignado: "COMAYAGUA" },
-{ id: 38, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "17092011", circuito: "PAV368", municipio: "1709-SAN LORENZO", sector_electoral: "LA CUESTA", lat: 13.51039143, lon: -87.49882314, sector_asignado: "CHOLUTECA" },
-{ id: 39, nombre: "ESC. 15 DE SEPTIEMBRE", cv: "8152011", circuito: "PAV368", municipio: "0815-REITOCA", sector_electoral: "EL RODEO", lat: 13.85553005, lon: -87.42747099, sector_asignado: "CHOLUTECA" },
-{ id: 40, nombre: "ESC. CERQUIN", cv: "13152005", circuito: "ERA372", municipio: "1315-PIRAERA", sector_electoral: "LAS MORAS", lat: 14.11023335, lon: -88.47596525, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 41, nombre: "ESC. RAMON ORTEGA", cv: "10132004", circuito: "CRL304", municipio: "1013-SAN MARCOS SIERRA", sector_electoral: "EL DERRUMBADO", lat: 15.13023047, lon: -88.29557827, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 42, nombre: "CEB JOSE TRINIDAD CABAÑAS", cv: "4112006", circuito: "LEC357", municipio: "0411-LA JIGUA", sector_electoral: "ALDEA NUEVA", lat: 15.16481277, lon: -88.77721161, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 43, nombre: "CEB DIEGO GARCÍA", cv: "13202008", circuito: "NIS331", municipio: "1320-SAN RAFAEL", sector_electoral: "QUERUCO", lat: 14.73853609, lon: -88.42995447, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 44, nombre: "ESC. PEDRO NUFIO", cv: "8182002", circuito: "CDH344", municipio: "0818-SAN BUENAVENTURA", sector_electoral: "EL TERRERO", lat: 13.83859426, lon: -87.19131844, sector_asignado: "TEGUCIGALPA" },
-{ id: 45, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "6032026", circuito: "PRD360", municipio: "0603-CONCEPCION DE MARIA", sector_electoral: "PALO SOLO", lat: 13.19908422, lon: -87.02563812, sector_asignado: "CHOLUTECA" },
-{ id: 46, nombre: "ESC. DANIEL RAMOS", cv: "13162003", circuito: "ERA372", municipio: "1316-SAN ANDRES", sector_electoral: "SAN BUENA", lat: 14.15371611, lon: -88.62375334, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 47, nombre: "ESC. EL PATRIOTISMO", cv: "12012014", circuito: "CYG326", municipio: "1201-LA PAZ", sector_electoral: "LAS LIMAS", lat: 14.2871946, lon: -87.82739784, sector_asignado: "COMAYAGUA" },
-{ id: 48, nombre: "CEB LEMPIRA", cv: "16032008", circuito: "NIS332", municipio: "1603-ATIMA", sector_electoral: "EL LEMANAL", lat: 14.88411218, lon: -88.52603363, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 49, nombre: "ESC. FRANCISCO MORAZAN", cv: "18112017", circuito: "MOR396", municipio: "1811-YORITO", sector_electoral: "TURIN", lat: 15.10088165, lon: -87.3892046, sector_asignado: "EL PROGRESO" },
-{ id: 50, nombre: "ESC. ESTEBAN GUARDIOLA", cv: "1072034", circuito: "TEL309", municipio: "0107-TELA", sector_electoral: "PEMAN O ULUITA ADENTRO", lat: 15.69639296, lon: -87.62707251, sector_asignado: "LA CEIBA" },
-{ id: 51, nombre: "CEB EL ADELANTO", cv: "13232008", circuito: "SRS339", municipio: "1323-TALGUA", sector_electoral: "EL AGUACATE", lat: 14.69863247, lon: -88.71718956, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 52, nombre: "CEB ALVARO CONTRERAS", cv: "16102005", circuito: "MCH332", municipio: "1610-EL NISPERO", sector_electoral: "NUEVA YORK", lat: 14.74972215, lon: -88.20198726, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 53, nombre: "ESC. POLICARPO BONILLA", cv: "17072015", circuito: "PAV368", municipio: "1707-LANGUE", sector_electoral: "EL HATO", lat: 13.6246652, lon: -87.713596, sector_asignado: "CHOLUTECA" },
-{ id: 54, nombre: "ESC. ESTEBAN GUARDIOLA", cv: "7092008", circuito: "DAN389", municipio: "0709-OROPOLI", sector_electoral: "LAS CRUCITAS", lat: 13.80378572, lon: -86.8016783, sector_asignado: "DANLI" },
-{ id: 55, nombre: "ESC. ANA ROSA VENTURA", cv: "12022006", circuito: "PAV368", municipio: "1202-AGUANQUETERIQUE", sector_electoral: "GUIRACARAY", lat: 13.9151146, lon: -87.62502657, sector_asignado: "CHOLUTECA" },
-{ id: 56, nombre: "ESC. SALVADOR CORLETO", cv: "4072002", circuito: "LEC358", municipio: "0407-DOLORES", sector_electoral: "JOYAS GALANAS", lat: 14.91252213, lon: -88.84040289, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 57, nombre: "ESC. PAULA PALACIOS DE PINEDA", cv: "10072002", circuito: "SGT373", municipio: "1007-JESUS DE OTORO", sector_electoral: "EL POTRERO DE SAN FRANCISCO", lat: 14.4442918, lon: -88.05128327, sector_asignado: "COMAYAGUA" },
-{ id: 58, nombre: "ESC. VICENTE CHAVEZ", cv: "8262009", circuito: "SUY258", municipio: "0826-VALLE DE ANGELES", sector_electoral: "EL LIQUIDAMBAR", lat: 14.19910401, lon: -87.05115982, sector_asignado: "TEGUCIGALPA" },
-{ id: 59, nombre: "CEB VALENTIN ALVARADO", cv: "17012037", circuito: "PAV369", municipio: "1701-NACAOME", sector_electoral: "ZUNIGA ABAJO", lat: 13.61381278, lon: -87.47160127, sector_asignado: "CHOLUTECA" },
-{ id: 60, nombre: "ESC. LA ESPERANZA", cv: "10062029", circuito: "CYG317", municipio: "1006-INTIBUCA", sector_electoral: "LOS PLANES", lat: 14.43196288, lon: -88.2110702, sector_asignado: "COMAYAGUA" },
-{ id: 61, nombre: "ESC. MANUEL DE JESUS SUBIRANA", cv: "4022013", circuito: "LEC357", municipio: "0402-CABAÑAS", sector_electoral: "MIRAMAR", lat: 14.78834117, lon: -89.1193214, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 62, nombre: "ESC. FRANCISCO MORAZAN", cv: "3032022", circuito: "CYG386", municipio: "0303-EL ROSARIO", sector_electoral: "LOS RANCHITOS", lat: 14.64534409, lon: -87.66135663, sector_asignado: "COMAYAGUA" },
-{ id: 63, nombre: "ESC. DIONISIO DE HERRERA", cv: "1072002", circuito: "TEL309", municipio: "0107-TELA", sector_electoral: "AGUA CHIQUITA", lat: 15.81500576, lon: -87.62811826, sector_asignado: "LA CEIBA" },
-{ id: 64, nombre: "ESC. RAMON ROSA", cv: "8082002", circuito: "CDH344", municipio: "0808-LA VENTA", sector_electoral: "LA TEJERA", lat: 13.77324581, lon: -87.34900323, sector_asignado: "TEGUCIGALPA" },
-{ id: 65, nombre: "CEB ING. LUIS BOGRAN", cv: "16012016", circuito: "CRL304", municipio: "1601-SANTA BARBARA", sector_electoral: "RIO SECO", lat: 14.98734355, lon: -88.10046028, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 66, nombre: "CEB MARIO MELGAR", cv: "5062010", circuito: "RNA385", municipio: "0506-PUERTO CORTES", sector_electoral: "EL MANGO", lat: 15.758769, lon: -87.83701, sector_asignado: "CHOLOMA" },
-{ id: 67, nombre: "ESC. JUAN LINDO", cv: "18042045", circuito: "PGR319", municipio: "1804-EL PROGRESO", sector_electoral: "URRACO SUR", lat: 15.26300751, lon: -87.86100151, sector_asignado: "EL PROGRESO" },
-{ id: 68, nombre: "ESC. MIGUEL PAZ BARAHONA", cv: "15052019", circuito: "CAT375", municipio: "1505-DULCE NOMBRE DE CULMI", sector_electoral: "PUEBLO VIEJO", lat: 15.15490176, lon: -85.46576039, sector_asignado: "JUTICALPA" },
-{ id: 69, nombre: "ESC. FRANCISCO MORAZAN", cv: "6052013", circuito: "SLU320", municipio: "0605-EL CORPUS", sector_electoral: "EL BIJAGUAL", lat: 13.19925314, lon: -87.04621879, sector_asignado: "CHOLUTECA" },
-{ id: 70, nombre: "ESC. LEMPIRA", cv: "6052003", circuito: "SLU318", municipio: "0605-EL CORPUS", sector_electoral: "LA CUCHILLA", lat: 13.36561215, lon: -86.98634102, sector_asignado: "CHOLUTECA" },
-{ id: 71, nombre: "ESC. CRISTOBAL COLON", cv: "15052016", circuito: "CAT375", municipio: "1505-DULCE NOMBRE DE CULMI", sector_electoral: "EL COYOLAR", lat: 15.05783968, lon: -85.59127462, sector_asignado: "JUTICALPA" },
-{ id: 72, nombre: "ESC. MARIO ENRIQUE PRIETO", cv: "5062004", circuito: "TSZ224", municipio: "0506-PUERTO CORTES", sector_electoral: "BARRA DE CHAMELECON", lat: 15.894069, lon: -87.786248, sector_asignado: "CHOLOMA" },
-{ id: 73, nombre: "ESC. FIAT LUX", cv: "3132018", circuito: "CYG386", municipio: "0313-SAN JERONIMO", sector_electoral: "LAS DANTAS", lat: 14.59859394, lon: -87.47976677, sector_asignado: "COMAYAGUA" },
-{ id: 74, nombre: "ESC. JUAN RAMON MOLINA", cv: "8262003", circuito: "PVR342", municipio: "0826-VALLE DE ANGELES", sector_electoral: "EL GUANACASTE", lat: 14.23921, lon: -87.00103821, sector_asignado: "TEGUCIGALPA" },
-{ id: 75, nombre: "ESC. MIGUEL PAZ BARAHONA", cv: "16162002", circuito: "NCO364", municipio: "1616-PETOA", sector_electoral: "EL PARAISO", lat: 15.229299, lon: -88.30049, sector_asignado: "VILLANUEVA" },
-{ id: 76, nombre: "ESC. MANUEL BONILLA", cv: "6052016", circuito: "SLU359", municipio: "0605-EL CORPUS", sector_electoral: "LOS TERREROS", lat: 13.32107833, lon: -87.19167049, sector_asignado: "CHOLUTECA" },
-{ id: 77, nombre: "CEB LAS PRIMAVERAS", cv: "10162013", circuito: "CYG317", municipio: "1016-YAMARANGUILA", sector_electoral: "LOS OLIVOS", lat: 14.34018281, lon: -88.21239307, sector_asignado: "COMAYAGUA" },
-{ id: 78, nombre: "ESC. EL ADELANTO", cv: "14102002", circuito: "LEC357", municipio: "1410-SAN FERNANDO", sector_electoral: "QUESERAS", lat: 14.68397411, lon: -89.13324782, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 79, nombre: "ESC. MARIA E. DE INESTROZA", cv: "8012065", circuito: "SFE307", municipio: "0801-DISTRITO CENTRAL", sector_electoral: "EL GUAYABO", lat: 14.1723809, lon: -87.24723359, sector_asignado: "TEGUCIGALPA" },
-{ id: 80, nombre: "ESC. JOSE SANTOS GUARDIOLA", cv: "17012023", circuito: "PAV368", municipio: "1701-NACAOME", sector_electoral: "EL JICARO", lat: 13.60778292, lon: -87.48045461, sector_asignado: "CHOLUTECA" },
-{ id: 81, nombre: "ESC. ALVARO CONTRERAS", cv: "6032012", circuito: "PRD360", municipio: "0603-CONCEPCION DE MARIA", sector_electoral: "LAS MESAS", lat: 13.2224966, lon: -87.00767925, sector_asignado: "CHOLUTECA" },
-{ id: 82, nombre: "ESC. SALVADOR SERRANO", cv: "13192011", circuito: "LFL334", municipio: "1319-SAN MANUEL COLOHETE", sector_electoral: "EL CEDRO", lat: 14.49408504, lon: -88.6309439, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 83, nombre: "CEB. FABIO MEZA", cv: "10162012", circuito: "CYG317", municipio: "1016-YAMARANGUILA", sector_electoral: "YACE", lat: 14.28503515, lon: -88.2686422, sector_asignado: "COMAYAGUA" },
-{ id: 84, nombre: "ESC. PEDRO NUFIO", cv: "17072026", circuito: "PAV368", municipio: "1707-LANGUE", sector_electoral: "EL CARRIZAL No. 1", lat: 13.67030507, lon: -87.60199879, sector_asignado: "CHOLUTECA" },
-{ id: 85, nombre: "ESC. JOSE MARTI", cv: "7082010", circuito: "PVR342", municipio: "0708-MOROCELI", sector_electoral: "EL CHILE O QUEBRADA GRANDE", lat: 14.27993503, lon: -86.8273949, sector_asignado: "TEGUCIGALPA" },
-{ id: 86, nombre: "ESC. RAMON AMAYA AMADOR", cv: "17072027", circuito: "PAV368", municipio: "1707-LANGUE", sector_electoral: "EL AGUACATAL O LA RINCONADA", lat: 13.73334091, lon: -87.63580714, sector_asignado: "CHOLUTECA" },
-{ id: 87, nombre: "ESC. ANGEL VARGAS", cv: "15112003", circuito: "GMC378", municipio: "1511-GUAYAPE", sector_electoral: "EL COYOLAR", lat: 14.83549622, lon: -86.89340015, sector_asignado: "TEGUCIGALPA" },
-{ id: 88, nombre: "ESC. FRANCISCO MORAZÁN", cv: "6022012", circuito: "SLU318", municipio: "0602-APACILAGUA", sector_electoral: "LOS ZANJONES", lat: 13.47601, lon: -87.048878, sector_asignado: "CHOLUTECA" },
-{ id: 89, nombre: "ESC. MINERVA", cv: "4112008", circuito: "LEC362", municipio: "0411-LA JIGUA", sector_electoral: "EL CAMPANARIO", lat: 15.14550785, lon: -88.72494673, sector_asignado: "VILLANUEVA" },
-{ id: 90, nombre: "ESC. MINERVA", cv: "13152006", circuito: "ERA372", municipio: "1315-PIRAERA", sector_electoral: "SUYAPITA O PICHIGUAL", lat: 14.02526082, lon: -88.52031343, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 91, nombre: "CEB FRANCISCO MORAZÁN", cv: "14092008", circuito: "SRS339", municipio: "1409-MERCEDES", sector_electoral: "EL CORAL", lat: 14.35064271, lon: -89.01331308, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 92, nombre: "CEB JOSÉ TRINIDAD CABAÑAS", cv: "15222008", circuito: "JUT380", municipio: "1522-YOCON", sector_electoral: "SAN PEDRO", lat: 14.98451473, lon: -86.78947205, sector_asignado: "JUTICALPA" },
-{ id: 93, nombre: "ESC. NORMAL MIXTA ORBELINDO PERDOMO", cv: "18062030", circuito: "MOR396", municipio: "1806-MORAZAN", sector_electoral: "LA MAJADITA", lat: 15.3455132, lon: -87.52812611, sector_asignado: "EL PROGRESO" },
-{ id: 94, nombre: "ESC. MANUEL BONILLA", cv: "8152020", circuito: "PAV368", municipio: "0815-REITOCA", sector_electoral: "EL JICARAL No. 1", lat: 13.77741206, lon: -87.40909488, sector_asignado: "CHOLUTECA" },
-{ id: 95, nombre: "ESC. ALVARO CONTRERAS", cv: "6032031", circuito: "PRD360", municipio: "0603-CONCEPCION DE MARIA", sector_electoral: "LA MAJADA", lat: 13.23189192, lon: -87.0026583, sector_asignado: "CHOLUTECA" },
-{ id: 96, nombre: "ESC. FRANCISCO MORAZAN", cv: "8152019", circuito: "CDH344", municipio: "0815-REITOCA", sector_electoral: "SAN BARTOLO", lat: 13.79227306, lon: -87.30612226, sector_asignado: "TEGUCIGALPA" },
-{ id: 97, nombre: "ESC. MARIA AUXILIADORA", cv: "6012029", circuito: "SLU359", municipio: "0601-CHOLUTECA", sector_electoral: "ZACATUSTAL", lat: 13.49285367, lon: -87.20664624, sector_asignado: "CHOLUTECA" },
-{ id: 98, nombre: "ESC. RAMON ROSA", cv: "12152010", circuito: "CYG317", municipio: "1215-SANTA ANA", sector_electoral: "JUNIGUARA", lat: 13.91125745, lon: -88.01850145, sector_asignado: "COMAYAGUA" },
-{ id: 99, nombre: "JARDIN DE NIÑOS TRINIDAD CÁRCAMO", cv: "2072003", circuito: "BOR350", municipio: "0207-SANTA ROSA AGUAN", sector_electoral: "VUELTA GRANDE", lat: 15.95225345, lon: -85.72844012, sector_asignado: "TOCOA" },
-{ id: 100, nombre: "CEB PAZ Y PROGREZO", cv: "13252011", circuito: "ERA372", municipio: "1325-TOMALA", sector_electoral: "SAN LORENZO", lat: 14.25544681, lon: -88.85301176, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 101, nombre: "ESC. RAMON ROSA", cv: "16242002", circuito: "MCH332", municipio: "1624-SANTA RITA", sector_electoral: "SAN FERNANDO", lat: 14.7796942, lon: -88.25528356, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 102, nombre: "ESC. AMBROSIO BUESO", cv: "3062023", circuito: "CYG386", municipio: "0306-LA LIBERTAD", sector_electoral: "CERRO NEGRO", lat: 14.75919319, lon: -87.53713608, sector_asignado: "COMAYAGUA" },
-{ id: 103, nombre: "ESC. LEMPIRA", cv: "18012046", circuito: "YOR399", municipio: "1801-YORO", sector_electoral: "SAN SIMON", lat: 15.21646727, lon: -87.30937903, sector_asignado: "EL PROGRESO" },
-{ id: 104, nombre: "ESC. MEDARDO MEJIA", cv: "15152015", circuito: "JUT380", municipio: "1515-MANTO", sector_electoral: "EL JUTE", lat: 14.83627567, lon: -86.37964882, sector_asignado: "JUTICALPA" },
-{ id: 105, nombre: "ESC. 14 DE JULIO", cv: "17082011", circuito: "PAV368", municipio: "1708-SAN FRANCISCO DE CORAY", sector_electoral: "LA CAÑADA O CALEA No. 1", lat: 13.66551778, lon: -87.58485307, sector_asignado: "CHOLUTECA" },
-{ id: 106, nombre: "ESC. FRANCISCO MORAZAN", cv: "8042006", circuito: "PAV368", municipio: "0804-CURAREN", sector_electoral: "EL PORVENIR", lat: 13.78409484, lon: -87.63814593, sector_asignado: "CHOLUTECA" },
-{ id: 107, nombre: "ESCUELA ALFONSO GUILLEN ZELAYA", cv: "18062031", circuito: "MOR396", municipio: "1806-MORAZAN", sector_electoral: "SAN FRANCISCO DE TOBIAS", lat: 15.45103966, lon: -87.60743542, sector_asignado: "EL PROGRESO" },
-{ id: 108, nombre: "ESC. OLIMPIA VARELA Y VARELA", cv: "18012035", circuito: "YOR398", municipio: "1801-YORO", sector_electoral: "YODECO", lat: 15.17919395, lon: -87.07027723, sector_asignado: "EL PROGRESO" },
-{ id: 109, nombre: "ESC. MANUEL BONILLA", cv: "15192017", circuito: "JUT380", municipio: "1519-SAN FRANCISCO DE LA PAZ", sector_electoral: "TIERRA BLANCA", lat: 14.88390288, lon: -86.23855623, sector_asignado: "JUTICALPA" },
-{ id: 110, nombre: "ESC. EL PROGRESO", cv: "13152020", circuito: "ERA372", municipio: "1315-PIRAERA", sector_electoral: "EL MATASANO", lat: 14.06602706, lon: -88.45131812, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 111, nombre: "ESC. VALENTIN PEREIRA", cv: "3032017", circuito: "SGT373", municipio: "0303-EL ROSARIO", sector_electoral: "PLAN GRANDE", lat: 14.66943173, lon: -87.71545125, sector_asignado: "COMAYAGUA" },
-{ id: 112, nombre: "ESC. ALONSO ALTAMIRANO", cv: "16182033", circuito: "NCO364", municipio: "1618-QUIMISTAN", sector_electoral: "BUENA VISTA MOTAGUILLA", lat: 15.456297, lon: -88.347123, sector_asignado: "VILLANUEVA" },
-{ id: 113, nombre: "ESC. ROLANDO CARDENAS", cv: "13022009", circuito: "LFL334", municipio: "1302-BELEN", sector_electoral: "LA PUERTA DEL OCOTE", lat: 14.54247424, lon: -88.39331006, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 114, nombre: "ESC. PLAN DE SAN ANTONIO", cv: "8162029", circuito: "CDH344", municipio: "0816-SABANAGRANDE", sector_electoral: "PLAN DE SAN ANTONIO", lat: 13.79549474, lon: -87.29653233, sector_asignado: "TEGUCIGALPA" },
-{ id: 115, nombre: "ESC. MARCOS CARIAS REYES", cv: "4172005", circuito: "LEC358", municipio: "0417-SAN JOSE", sector_electoral: "LAS DELICIAS", lat: 14.89658123, lon: -88.74323656, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 116, nombre: "ESC. FRANCISCO JAVIER RAPALO", cv: "16262015", circuito: "CRL304", municipio: "1626-TRINIDAD", sector_electoral: "LAS DELICIAS", lat: 15.06035041, lon: -88.24690368, sector_asignado: "SANTA CRUZ DE YOJOA" },
-{ id: 117, nombre: "ESC. AMILCAR RIVERA CALDERON", cv: "1082022", circuito: "TEL309", municipio: "0108-ARIZONA", sector_electoral: "SAN MARTIN", lat: 15.76430299, lon: -87.37037163, sector_asignado: "LA CEIBA" },
-{ id: 118, nombre: "ESC. PATRIA", cv: "16042016", circuito: "LEC362", municipio: "1604-AZACUALPA", sector_electoral: "CERRO GRANDE", lat: 15.39196, lon: -88.587657, sector_asignado: "VILLANUEVA" },
-{ id: 119, nombre: "ESC. JOSE CECILIO DEL VALLE", cv: "4092019", circuito: "LEC357", municipio: "0409-EL PARAISO", sector_electoral: "SAN CRISTOBAL", lat: 14.98481786, lon: -88.94295657, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 120, nombre: "ESC. JOSE TRINIDAD REYES", cv: "13162011", circuito: "ERA372", municipio: "1316-SAN ANDRES", sector_electoral: "SAN ANTONIO ESQUIMPARA", lat: -88.206183, lon: -88.62368844, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 121, nombre: "ESC. SOTERO BARAHONA", cv: "5032023", circuito: "MAS352", municipio: "0503-OMOA", sector_electoral: "BARRA DEL MOTAGUA", lat: 15.70943, lon: -88.20595525, sector_asignado: "CHOLOMA" },
-{ id: 122, nombre: "ESC. LEMPIRA", cv: "15192003", circuito: "JUT380", municipio: "1519-SAN FRANCISCO DE LA PAZ", sector_electoral: "LOS DESMONTES", lat: 14.77278929, lon: -86.1445096, sector_asignado: "JUTICALPA" },
-{ id: 123, nombre: "ESC. PATRIA", cv: "5032024", circuito: "MAS352", municipio: "0503-OMOA", sector_electoral: "SAN ISIDRO", lat: 15.62169607, lon: -88.14757232, sector_asignado: "SAN PEDRO SULA CENTRO" },
-{ id: 124, nombre: "ESC. RAMON ORTEGA", cv: "3062024", circuito: "CYG386", municipio: "0306-LA LIBERTAD", sector_electoral: "LA MINA", lat: 14.78068849, lon: -87.56174738, sector_asignado: "COMAYAGUA" },
-{ id: 125, nombre: "ESC. PATRIA", cv: "4102032", circuito: "LEC357", municipio: "0410-FLORIDA", sector_electoral: "LA RUIDOSA", lat: 15.24200347, lon: -88.77680672, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 126, nombre: "ESC. RAMÓN VILLEDA MORALES", cv: "3042015", circuito: "CYG386", municipio: "0304-ESQUIAS", sector_electoral: "HACIENDA VIEJA", lat: 14.57178977, lon: -87.49128485, sector_asignado: "COMAYAGUA" },
-{ id: 127, nombre: "ESC. LA DEMOCRACIA", cv: "13202014", circuito: "NIS331", municipio: "1320-SAN RAFAEL", sector_electoral: "LOS LAURELES", lat: 14.67049719, lon: -88.37188783, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 128, nombre: "ESC. JOHN F. KENNEDY", cv: "4092014", circuito: "LEC357", municipio: "0409-EL PARAISO", sector_electoral: "LAS DELICIAS DEL CHISPAL", lat: 15.01122584, lon: -88.96787051, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 129, nombre: "ESC. HONDURAS", cv: "17072020", circuito: "PAV368", municipio: "1707-LANGUE", sector_electoral: "BAJOS DE LA FLOR", lat: 13.63776259, lon: -87.59491756, sector_asignado: "CHOLUTECA" },
-{ id: 130, nombre: "ESC. JOSE TRINIDAD CABAÑAS", cv: "15152018", circuito: "JUT380", municipio: "1515-MANTO", sector_electoral: "EL GUAPINOL", lat: 14.88772806, lon: -86.45086123, sector_asignado: "JUTICALPA" },
-{ id: 131, nombre: "CEB MANUEL BONILLA", cv: "1032007", circuito: "TEL309", municipio: "0103-ESPARTA", sector_electoral: "COLORADO BARRA", lat: 15.77678887, lon: -87.25670841, sector_asignado: "LA CEIBA" },
-{ id: 132, nombre: "ESC. GUADALUPE JEREZANO", cv: "3062029", circuito: "CYG386", municipio: "0306-LA LIBERTAD", sector_electoral: "BUENA VISTA", lat: 14.78700672, lon: -87.54347665, sector_asignado: "COMAYAGUA" },
-{ id: 133, nombre: "ESC. MARIN JUAREZ", cv: "15052040", circuito: "CAT375", municipio: "1505-DULCE NOMBRE DE CULMI", sector_electoral: "EL OCOTILLAL", lat: 15.28219163, lon: -85.39546234, sector_asignado: "JUTICALPA" },
-{ id: 134, nombre: "ESC. JOSE TRINIDAD CABAÑAS", cv: "7122011", circuito: "ZAM383", municipio: "0712-SAN LUCAS", sector_electoral: "MACTUCA ABAJO", lat: 13.69722933, lon: -86.96869528, sector_asignado: "TEGUCIGALPA" },
-{ id: 135, nombre: "ESC. ALEJANDRO VADOS MURILLO", cv: "1072025", circuito: "TEL309", municipio: "0107-TELA", sector_electoral: "LAS MERCEDES", lat: 15.5259637, lon: -87.53139873, sector_asignado: "LA CEIBA" },
-{ id: 136, nombre: "ESC. LEMPIRA", cv: "8162014", circuito: "CDH344", municipio: "0816-SABANAGRANDE", sector_electoral: "PLAN DEL OREGANO", lat: 13.81574573, lon: -87.3206332, sector_asignado: "TEGUCIGALPA" },
-{ id: 137, nombre: "ESC. SAN ANTONIO DE PASTOS", cv: "8242014", circuito: "PVR342", municipio: "0824-TALANGA", sector_electoral: "SAN ANTONIO DE PASTOS", lat: 14.37433387, lon: -87.14017689, sector_asignado: "TEGUCIGALPA" },
-{ id: 138, nombre: "ESC. JOSE TRINIDAD CABAÑAS", cv: "6012049", circuito: "SLU320", municipio: "0601-CHOLUTECA", sector_electoral: "CERCO DE PIEDRAS", lat: 13.27942204, lon: -87.05756158, sector_asignado: "CHOLUTECA" },
-{ id: 139, nombre: "ESC. LEOVIGILDO PINEDA CARDONA", cv: "1082018", circuito: "TEL309", municipio: "0108-ARIZONA", sector_electoral: "SAN JOSE DE TIBURON", lat: 15.72343249, lon: -87.35868657, sector_asignado: "LA CEIBA" },
-{ id: 140, nombre: "CEB RAMON AMAYA AMADOR", cv: "13072017", circuito: "ERA372", municipio: "1307-GUARITA", sector_electoral: "EL CARRIZALITO", lat: 14.23476842, lon: -88.86697245, sector_asignado: "SANTA ROSA DE COPAN" },
-{ id: 141, nombre: "ESC. DIONISIO DE HERRERA", cv: "16042013", circuito: "LEC362", municipio: "1604-AZACUALPA", sector_electoral: "EL AGUACATE", lat: 15.344155, lon: -88.672831, sector_asignado: "VILLANUEVA" }
-
-        ];
-
-        // Creación de los marcadores y asignación de iconos según inspeccionados
-        let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
-        puntos.forEach(punto => {
-            var icono = inspeccionados.includes(punto.cv) ? iconoInspeccionado : iconoNormal;
-            var marcador = L.marker([punto.lat, punto.lon], { icon: icono })
-                .addTo(map)
-                .bindPopup(`<b>${punto.nombre}</b><br><button onclick="seleccionarPunto(${punto.id})">Inspeccionar</button>`);
-            marcadores[punto.cv] = marcador;
-        });
-
-        // Función para filtrar marcadores según el sector seleccionado
-        function filterMarkers() {
-            var selectedSector = document.getElementById("sector_asignado_filter").value;
-            puntos.forEach(punto => {
-                var marker = marcadores[punto.cv];
-                if (selectedSector === "todos" || punto.sector_asignado === selectedSector) {
-                    if (!map.hasLayer(marker)) {
-                        marker.addTo(map);
-                    }
-                } else {
-                    if (map.hasLayer(marker)) {
-                        map.removeLayer(marker);
-                    }
-                }
-            });
-        }
-
-        // Listener para el cambio en el dropdown
-        document.getElementById("sector_asignado_filter").addEventListener("change", filterMarkers);
-
-        function seleccionarPunto(id) {
-            var punto = puntos.find(p => p.id === id);
-            if (punto) {
-                document.getElementById("nombre_centro").value = punto.nombre;
-                document.getElementById("cv").value = punto.cv;
-                document.getElementById("circuito").value = punto.circuito;
-                document.getElementById("municipio").value = punto.municipio;
-                document.getElementById("sector_electoral").value = punto.sector_electoral;
-                document.getElementById("latitud_original").value = punto.lat;
-                document.getElementById("longitud_original").value = punto.lon;
-                // Restablecer campos editables
-                document.getElementById("latitud_nueva").value = "";
-                document.getElementById("longitud_nueva").value = "";
-                document.getElementById("distancia").value = "";
-                document.getElementById("observaciones").value = "";
-                document.getElementById("estado_suministro").value = "";
-                document.getElementById("base").value = "";
-                document.getElementById("acometida").value = "";
-                document.getElementById("instalacion").value = "";
-                document.getElementById("formulario").style.display = "block";
-            }
-        }
-
-        function captarCoordenadas() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(position => {
-                    document.getElementById("latitud_nueva").value = position.coords.latitude;
-                    document.getElementById("longitud_nueva").value = position.coords.longitude;
-                }, error => {
-                    alert("No se pudo obtener la ubicación: " + error.message);
-                });
-            } else {
-                alert("Geolocalización no soportada en este navegador.");
-            }
-        }
-
-        var apiURL = "https://script.google.com/macros/s/AKfycbztPeNTrJhowtlrk5GfCLIiU_8tvG5pQWaUkOqKBZsMrrle8ZvBWvORMgIoHaBfmK_1Dw/exec";
-        var apiFotosURL = "https://script.google.com/macros/s/AKfycbxYC5QEXFankc9vRm7fFzL4X-eWCz1dyoOjbNBLiksemKJCh8zqJvQMXJo410NyILR3/exec"
-        var imagenesSeleccionadas = [];
-
-        document.getElementById("fotos").addEventListener("change", function(event) {
-            var archivos = event.target.files;
-            var previewsContainer = document.getElementById("previews");
-            let promises = [];
-            for (let i = 0; i < archivos.length; i++) {
-                let file = archivos[i];
-                let reader = new FileReader();
-                promises.push(new Promise((resolve, reject) => {
-                    reader.onload = function(e) {
-                        let base64Image = e.target.result.split(",")[1];
-                        if (!imagenesSeleccionadas.includes(base64Image)) {
-                            imagenesSeleccionadas.push(base64Image);
-                            let existingImages = Array.from(previewsContainer.getElementsByTagName("img")).map(img => img.src);
-                            if (!existingImages.includes(e.target.result)) {
-                                var img = document.createElement("img");
-                                img.src = e.target.result;
-                                img.style.maxWidth = "100px";
-                                img.style.margin = "5px";
-                                img.style.border = "1px solid #ccc";
-                                previewsContainer.appendChild(img);
-                            }
-                        }
-                        resolve();
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                }));
-            }
-            Promise.all(promises).then(() => {
-                console.log("Todas las imágenes fueron procesadas correctamente.");
-            }).catch(error => {
-                console.error("Error procesando imágenes:", error);
-            });
-        });
-
-function guardarInspeccion() {
-    document.getElementById("loadingPopup").style.display = "block";
-    var datos = {
-        nombre_centro: document.getElementById("nombre_centro").value,
-        cv: document.getElementById("cv").value,
-        circuito: document.getElementById("circuito").value,
-        municipio: document.getElementById("municipio").value,
-        sector_electoral: document.getElementById("sector_electoral").value,
-        sector_asignado: document.getElementById("sector_asignado_filter").value,
-        latitud_original: document.getElementById("latitud_original").value,
-        longitud_original: document.getElementById("longitud_original").value,
-        latitud_nueva: document.getElementById("latitud_nueva").value,
-        longitud_nueva: document.getElementById("longitud_nueva").value,
-        estado_suministro: document.getElementById("estado_suministro").value,
-        distancia: document.getElementById("distancia").value,
-        base: document.getElementById("base").value,
-        acometida: document.getElementById("acometida").value,
-        instalacion: document.getElementById("instalacion").value,
-        observaciones: document.getElementById("observaciones").value,
-        // Nueva sección de preguntas:
-        requiere_adecuacion: document.getElementById("requiere_adecuacion").value,
-        cantidad_postes: document.getElementById("cantidad_postes").value,
-        material_poste: document.getElementById("material_poste").value,
-        altura_poste: document.getElementById("altura_poste").value,
-        cantidad_transformadores: document.getElementById("cantidad_transformadores").value,
-        potencia_transformador: document.getElementById("potencia_transformador").value,
-        linea_primaria: document.getElementById("linea_primaria").value,
-        linea_secundaria: document.getElementById("linea_secundaria").value,
-        otros_materiales: document.getElementById("otros_materiales").value
-    };
-            if (imagenesSeleccionadas.length > 0) {
-                for (let i = 0; i < imagenesSeleccionadas.length; i++) {
-                    datos[`foto_${i}`] = imagenesSeleccionadas[i];
-                }
-            }
-            fetch(apiURL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(datos)
-            })
-            .then(() => {
-                return fetch(apiFotosURL, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(datos)
-                });
-            })
-            .then(() => {
-                document.getElementById("loadingPopup").style.display = "none";
-                alert("Guardado con éxito.");
-                var cv = document.getElementById("cv").value;
-                if (marcadores[cv]) {
-                    marcadores[cv].setIcon(iconoInspeccionado);
-                    let inspeccionados = JSON.parse(localStorage.getItem("inspeccionados")) || [];
-                    if (!inspeccionados.includes(cv)) {
-                        inspeccionados.push(cv);
-                        localStorage.setItem("inspeccionados", JSON.stringify(inspeccionados));
-                    }
-                }
-                document.getElementById("formulario").reset();
-                imagenesSeleccionadas = [];
-                document.getElementById("fotos").value = "";
-                document.getElementById("previews").innerHTML = "";
-            })
-            .catch(error => {
-                console.error("Error al guardar los datos:", error);
-                alert("Error al guardar los datos. Revisa la consola.");
-                document.getElementById("loadingPopup").style.display = "none";
-            });
-        }
-        // Agregar el listener para mostrar/ocultar las preguntas adicionales según "Requiere adecuación de red"
-        document.getElementById("requiere_adecuacion").addEventListener("change", function() {
-            var extraBlock = document.getElementById("adecuacion_extra");
-            extraBlock.style.display = (this.value === "Si") ? "block" : "none";
-        });
-    </script>
-
-    <div id="loadingPopup" style="display: none; 
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-        background: rgba(0, 0, 0, 0.7); color: white; padding: 20px; 
-        font-size: 18px; border-radius: 10px; z-index: 1000;">
-        Guardando información... Por favor, espera.
+  <div id="sheet">
+    <div id="sheet-header">
+      <h2>Inspección Centro</h2>
+      <button id="close-sheet">&times;</button>
     </div>
+    <div id="progress">Paso 1 de 3</div>
+    <form id="inspection-form" data-centro-id="">
+      <details open>
+        <summary>Datos del Centro</summary>
+        <div>
+          <label>Region PNRP:<input type="text" id="regionPNRP" readonly /></label>
+          <label>Procede:<input type="text" id="procede" readonly /></label>
+          <label>Sector:<input type="text" id="sector" readonly /></label>
+          <label>Nombre:<input type="text" id="nombre" readonly /></label>
+          <label>Municipio:<input type="text" id="municipio" readonly /></label>
+        </div>
+      </details>
+      <details>
+        <summary>Ubicación y Circuito</summary>
+        <div>
+          <label>Latitud:<input type="text" id="latitud" readonly /></label>
+          <label>Longitud:<input type="text" id="longitud" readonly /></label>
+          <label>Circuito:<input type="text" id="circuito" readonly /></label>
+          <label>Voltaje:<input type="text" id="voltaje" readonly /></label>
+        </div>
+      </details>
+      <details>
+        <summary>Inspección y Observaciones</summary>
+        <div>
+          <label>Capacidad Transformador (kVA):<input type="number" id="capacidadTransformador" /></label>
+          <label>ID transformador:<input type="text" id="idTransformador" /></label>
+          <label>Cantidad de Clientes:<input type="number" id="cantidadClientes" required /></label>
+          <label>Riesgos Naturales:<select id="riesgosNaturales"><option value="">Seleccione</option><option>Sí</option><option>No</option></select></label>
+          <label>Observación Riesgos:<textarea id="observacionRiesgosNaturales"></textarea></label>
+        </div>
+      </details>
+      <button type="submit" id="save-btn">Guardar Respuestas</button>
+    </form>
+  </div>
+
+  <div id="snackbar">Guardado exitoso</div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    var SHEET_API_BASE = 'https://script.google.com/macros/s/AKfycbyg4395kjCmUcsHDGVVC3dSKfHDoJu5V_5JDBjC9YZFo9qUIDsqdvoVCAHi61so5NOGbw/exec';
+    var map = L.map('map').setView([0,0],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    var overlay = document.getElementById('loading-overlay');
+    var filterFab = document.getElementById('filter-fab');
+    var filterSheet = document.getElementById('filter-sheet');
+    var closeFilter = document.getElementById('close-filter');
+    var applyFilters = document.getElementById('apply-filters');
+    var sheet = document.getElementById('sheet');
+    var closeBtn = document.getElementById('close-sheet');
+    var snackbar = document.getElementById('snackbar');
+    var dataSpinner = document.getElementById('data-loading');
+    var markers = [];
+    var sectors = new Set();
+
+    function loadMarkers() {
+      overlay.style.display = 'flex';
+      fetch(SHEET_API_BASE + '?action=getAllCentros')
+        .then(function(res) { return res.json(); })
+        .then(function(centros) {
+          // extraer sectores definidos
+          centros.forEach(function(c) {
+            if(c.sector) sectors.add(c.sector);
+          });
+          populateFilter();
+          // crear marcadores
+          var bounds = [];
+          centros.forEach(function(c) {
+            var lat = parseFloat(c.latitud), lng = parseFloat(c.longitud);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              var m = L.marker([lat,lng]).addTo(map);
+              m.id = c.id; m.sector = c.sector;
+              var popupContent = '<div><strong>' + (c.nombre||'') + '</strong><br><button onclick="openSheet(\'' + c.id + '\')">Inspeccionar</button></div>';
+              m.bindPopup(popupContent);
+              markers.push(m);
+              bounds.push([lat,lng]);
+            }
+          });
+          if (bounds.length) map.fitBounds(bounds, { padding: [20,20] });
+        })
+        .catch(function(e) { console.error(e); })
+        .finally(function() { overlay.style.display = 'none'; });
+    }
+
+    function populateFilter() {
+      var select = document.getElementById('sectorFilter');
+      // limpiar excepto primer opción
+      select.innerHTML = '<option value="all">Todos los sectores</option>';
+      sectors.forEach(function(sec) {
+        var opt = document.createElement('option');
+        opt.value = sec; opt.textContent = sec;
+        select.appendChild(opt);
+      });
+    }
+
+    filterFab.onclick = function() {
+      filterSheet.classList.add('open');
+    };
+    closeFilter.onclick = function() {
+      filterSheet.classList.remove('open');
+    };
+    applyFilters.onclick = function() {
+      var sel = document.getElementById('sectorFilter').value;
+      filterSheet.classList.remove('open');
+      var visibleBounds = [];
+      markers.forEach(function(m) {
+        if (sel === 'all' || m.sector === sel) {
+          map.addLayer(m);
+          visibleBounds.push(m.getLatLng());
+        } else {
+          map.removeLayer(m);
+        }
+      });
+      if (visibleBounds.length) map.fitBounds(visibleBounds, { padding: [20,20] });
+    };
+
+    function openSheet(id) {
+      dataSpinner.style.display = 'flex';
+      fetch(SHEET_API_BASE + '?action=getCentro&id=' + id)
+        .then(response => response.json())
+        .then(data => {
+          ['regionPNRP','procede','sector','nombre','municipio','latitud','longitud','circuito','voltaje']
+            .forEach(f => document.getElementById(f).value = data[f] || '');
+          document.getElementById('inspection-form').dataset.centroId = id;
+          dataSpinner.style.display = 'none';
+          sheet.classList.add('open');
+        })
+        .catch(err => {
+          console.error(err);
+          dataSpinner.style.display = 'none';
+        });
+    }
+
+    closeBtn.onclick = function() { sheet.classList.remove('open'); };
+
+    document.getElementById('inspection-form').onsubmit = function(e) {
+      e.preventDefault();
+      var id = this.dataset.centroId;
+      var respuestas = {
+        capacidadTransformador: document.getElementById('capacidadTransformador').value,
+        idTransformador: document.getElementById('idTransformador').value,
+        cantidadClientes: document.getElementById('cantidadClientes').value,
+        riesgosNaturales: document.getElementById('riesgosNaturales').value,
+        observacionRiesgosNaturales: document.getElementById('observacionRiesgosNaturales').value
+      };
+      fetch(SHEET_API_BASE + '?action=saveRespuestas&id=' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ respuestas: respuestas })
+      })
+      .then(function(resp) {
+        if (resp.ok) {
+          sheet.classList.remove('open');
+          snackbar.classList.add('show');
+          setTimeout(function() { snackbar.classList.remove('show'); }, 3000);
+        }
+      }).catch(function(e) { console.error(e); });
+    };
+
+    loadMarkers();
+  </script>
 </body>
 </html>
